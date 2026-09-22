@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const planInputs = document.querySelectorAll(".plan-input");
   const selectedPlanText = document.getElementById("selected-plan-text");
   const checkoutButton = document.getElementById("checkout-button");
-  const paymentDialog = document.getElementById("payment-dialog");
 
   // Capitalize first letter helper
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
@@ -59,7 +58,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+const paymentDialog = document.getElementById("payment-dialog");
 const subscribeButton = document.getElementById("subscribeButton");
+const successDialog = document.getElementById("success-dialog");
+const subscriptionId = document.getElementById("subscription-id");
+const checkoutButton = document.getElementById("checkout-button");
+const cancelDialog = document.getElementById("cancel-dialog");
+
+cancelDialog.addEventListener("click", () => {
+  paymentDialog.close();
+  checkoutButton.innerHTML = "Subscribe";
+  checkoutButton.style.opacity = "1";
+  checkoutButton.style.pointerEvents = "auto";
+});
 
 subscribeButton.addEventListener("click", async (e) => {
   e.preventDefault();
@@ -94,13 +105,27 @@ subscribeButton.addEventListener("click", async (e) => {
     },
   };
 
-  console.log(payload);
-  //   return;
-  const response = await axios.post("https://recurring-billing-backend.vercel.app/subscribe-daily", payload, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const response = await axios.post("https://recurring-billing-backend.vercel.app/subscribe-daily", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  console.log("Subscription response:", response.data);
+    const subscription = response.data;
+    const isSuccessful = subscription.status === "COMPLETED" && subscription.subscriptionInformation?.status === "ACTIVE";
+
+    if (isSuccessful) {
+      subscriptionId.textContent = subscription.id;
+      paymentDialog.close();
+      successDialog.showModal();
+    }
+  } catch (error) {
+    console.error("Subscription request failed:", error.response?.data || error.message);
+    alert("We could not create your subscription. Please check your details and try again.");
+  } finally {
+    checkoutButton.innerHTML = "Subscribe";
+    checkoutButton.style.opacity = "1";
+    checkoutButton.style.pointerEvents = "auto";
+  }
 });
