@@ -469,6 +469,12 @@ body {
   color: var(--text-muted);
 }
 
+.card-type-display {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 768px) {
   .pricing-cards {
     flex-direction: column;

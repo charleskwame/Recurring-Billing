@@ -1,32 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const planInputs = document.querySelectorAll(".plan-input");
-  const selectedPlanText = document.getElementById("selected-plan-text");
   const checkoutButton = document.getElementById("checkout-button");
-
-  // Capitalize first letter helper
-  const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-
-  // Initial setup
-  const initialChecked = document.querySelector(".plan-input:checked");
-  if (initialChecked && selectedPlanText) {
-    selectedPlanText.textContent = capitalize(initialChecked.value);
-  }
-
-  // Update button text on change
-  planInputs.forEach((input) => {
-    input.addEventListener("change", (e) => {
-      if (selectedPlanText) {
-        selectedPlanText.textContent = capitalize(e.target.value);
-      }
-    });
-  });
 
   // Checkout button logic (simulated)
   checkoutButton.addEventListener("click", (e) => {
     e.preventDefault();
     paymentDialog.showModal();
-    // const selectedPlan = document.querySelector('.plan-input:checked').value;
-    // const buttonOriginalText = checkoutButton.innerHTML;
 
     // Simulating loading state
     checkoutButton.innerHTML = `
@@ -46,15 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
       style.textContent = "@keyframes spin { 100% { transform: rotate(360deg); } }";
       document.head.appendChild(style);
     }
-
-    // setTimeout(() => {
-    //     // Restore button
-    //     checkoutButton.innerHTML = buttonOriginalText;
-    //     checkoutButton.style.opacity = '1';
-    //     checkoutButton.style.pointerEvents = 'auto';
-
-    //     // alert(`Proceeding to checkout with ${capitalize(selectedPlan)} plan.`);
-    // }, 1500);
   });
 });
 
@@ -81,7 +50,7 @@ subscribeButton.addEventListener("click", async (e) => {
       email: formData.get("buyerEmail"), //USER EMAIL FROM YOUR WEBSITE
     },
     clientReferenceInformation: {
-      code: formData.get("clientReferenceCode"), //CUSTOM REFERENCE CODE
+      code: "TC50171_3",
     },
     paymentInformation: {
       card: {

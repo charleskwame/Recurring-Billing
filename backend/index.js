@@ -3,7 +3,6 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 const { createHeaders } = require("cybersource-auth");
-// const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const app = express();
@@ -35,30 +34,6 @@ const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const TOKEN_RESOURCE_PATH = process.env.CYBERSOURCE_TOKEN_URI;
 const SUBSCRIPTION_RESOURCE_PATH = process.env.CYBERSOURCE_SUBSCRIPTION_URI;
 const INSTRUMENT_IDENTIFIER_URI = process.env.CYBERSOURCE_INSTRUMENT_IDENTIFIER_URI;
-// const PAYMENT_INSTRUMENT_PATH = process.env.CYBERSOURCE_PAYMENTINSTRUMENT_URI;
-
-const decodeJwtPayload = (token) => {
-  try {
-    if (!token || typeof token !== "string") {
-      throw new Error("JWT is empty or invalid.");
-    }
-
-    const parts = token.split(".");
-
-    if (parts.length !== 3) {
-      throw new Error("Invalid JWT format.");
-    }
-
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-
-    const json = Buffer.from(base64, "base64").toString("utf8");
-
-    return JSON.parse(json);
-  } catch (error) {
-    console.error("Failed to decode JWT:", error);
-    return null;
-  }
-};
 
 const createDailySubscription = async (req, res) => {
   try {

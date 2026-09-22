@@ -23,7 +23,6 @@
       </header>
 
       <div class="pricing-cards">
-        <!-- Daily Plan -->
         <label class="card" for="plan-daily">
           <input type="radio" name="plan" id="plan-daily" value="daily" class="plan-input" />
           <div class="card-content">
@@ -54,7 +53,6 @@
           <div class="card-border"></div>
         </label>
 
-        <!-- Weekly Plan -->
         <label class="card popular" for="plan-weekly">
           <input type="radio" name="plan" id="plan-weekly" value="weekly" class="plan-input" checked />
           <div class="card-content">
@@ -91,7 +89,6 @@
           <div class="card-border"></div>
         </label>
 
-        <!-- Monthly Plan -->
         <label class="card" for="plan-monthly">
           <input type="radio" name="plan" id="plan-monthly" value="monthly" class="plan-input" />
           <div class="card-content">
@@ -131,8 +128,9 @@
       <dialog id="payment-dialog" class="payment-dialog">
         <form method="dialog" id="payment-form" class="payment-form">
           <h2>Enter Payment Information</h2>
+          <h6>Note: All fields are required</h6>
           <section class="form-section">
-            <h3>Buyer Information</h3>
+            <!-- <h3>Buyer Information</h3> -->
             <label>
               <span>Merchant Customer ID</span>
               <input type="text" name="merchantCustomerID" required />
@@ -142,15 +140,15 @@
               <input type="email" name="buyerEmail" required />
             </label>
           </section>
-          <section class="form-section">
+          <!-- <section class="form-section">
             <h3>Client Reference</h3>
             <label>
               <span>Reference Code</span>
               <input type="text" name="clientReferenceCode" required />
             </label>
-          </section>
+          </section> -->
           <section class="form-section">
-            <h3>Payment Information</h3>
+            <!-- <h3>Payment Information</h3> -->
             <label>
               <span>Card Number</span>
               <input type="text" name="cardNumber" id="card-number" minlength="13" maxlength="19" required />
@@ -167,7 +165,7 @@
             <p class="card-type-display" id="card-type-display">Card Type: <span>Unknown</span></p>
           </section>
           <section class="form-section">
-            <h3>Billing Address</h3>
+            <!-- <h3>Billing Address</h3> -->
             <label>
               <span>First Name</span>
               <input type="text" name="firstName" required />
