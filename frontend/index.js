@@ -96,11 +96,11 @@ subscribeButton.addEventListener("click", async (e) => {
 
   console.log(payload);
   //   return;
-  await fetch("http://localhost:3000/subscribe-daily", {
-    method: "POST",
+  const response = await axios.post("https://recurring-billing-backend.vercel.app/subscribe-daily", payload, {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
   });
+
+  console.log("Subscription response:", response.data);
 });

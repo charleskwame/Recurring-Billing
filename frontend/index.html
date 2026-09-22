@@ -1,205 +1,232 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Subscription Plans</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
-</head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="index.css" />
+  </head>
 
-<body>
+  <body>
     <div class="background-effects">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
     </div>
 
     <main class="container">
-        <header class="header">
-            <h1>Choose your plan</h1>
-            <p>Select a subscription that fits your lifestyle. Cancel anytime.</p>
-        </header>
+      <header class="header">
+        <h1>Choose your plan</h1>
+        <p>Select a subscription that fits your lifestyle. Cancel anytime.</p>
+      </header>
 
-        <div class="pricing-cards">
-            <!-- Daily Plan -->
-            <label class="card" for="plan-daily">
-                <input type="radio" name="plan" id="plan-daily" value="daily" class="plan-input">
-                <div class="card-content">
-                    <div class="card-header">
-                        <h2>Daily</h2>
-                        <span class="badge">Flexible</span>
-                    </div>
-                    <div class="price">
-                        <span class="currency">$</span>
-                        <span class="amount">20</span>
-                        <span class="period">/day</span>
-                    </div>
-                    <ul class="features">
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> 24-hour full access</li>
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> Standard support</li>
-                    </ul>
-                </div>
-                <div class="card-border"></div>
-            </label>
-
-            <!-- Weekly Plan -->
-            <label class="card popular" for="plan-weekly">
-                <input type="radio" name="plan" id="plan-weekly" value="weekly" class="plan-input" checked>
-                <div class="card-content">
-                    <div class="popular-tag">Most Popular</div>
-                    <div class="card-header">
-                        <h2>Weekly</h2>
-                    </div>
-                    <div class="price">
-                        <span class="currency">$</span>
-                        <span class="amount">50</span>
-                        <span class="period">/week</span>
-                    </div>
-                    <ul class="features">
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> 7-day full access</li>
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> Priority support</li>
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> Save 28% vs Daily</li>
-                    </ul>
-                </div>
-                <div class="card-border"></div>
-            </label>
-
-            <!-- Monthly Plan -->
-            <label class="card" for="plan-monthly">
-                <input type="radio" name="plan" id="plan-monthly" value="monthly" class="plan-input">
-                <div class="card-content">
-                    <div class="card-header">
-                        <h2>Monthly</h2>
-                        <span class="badge premium">Best Value</span>
-                    </div>
-                    <div class="price">
-                        <span class="currency">$</span>
-                        <span class="amount">70</span>
-                        <span class="period">/month</span>
-                    </div>
-                    <ul class="features">
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> 30-day full access</li>
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> 24/7 Premium support</li>
-                        <li><svg viewBox="0 0 24 24">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg> Save 36% vs Daily</li>
-                    </ul>
-                </div>
-                <div class="card-border"></div>
-            </label>
-        </div>
-        <dialog id="payment-dialog" class="payment-dialog">
-            <form method="dialog" id="payment-form" class="payment-form">
-                <h2>Enter Payment Information</h2>
-                <section class="form-section">
-                    <h3>Buyer Information</h3>
-                    <label>
-                        <span>Merchant Customer ID</span>
-                        <input type="text" name="merchantCustomerID" required />
-                    </label>
-                    <label>
-                        <span>Email</span>
-                        <input type="email" name="buyerEmail" required />
-                    </label>
-                </section>
-                <section class="form-section">
-                    <h3>Client Reference</h3>
-                    <label>
-                        <span>Reference Code</span>
-                        <input type="text" name="clientReferenceCode" required />
-                    </label>
-                </section>
-                <section class="form-section">
-                    <h3>Payment Information</h3>
-                    <label>
-                        <span>Card Number</span>
-                        <input type="text" name="cardNumber" id="card-number" minlength="13" maxlength="19" required />
-                    </label>
-                    <label>
-                        <span>Expiration Month</span>
-                        <input type="text" name="expirationMonth" pattern="(0[1-9]|1[0-2])" placeholder="MM" required />
-                    </label>
-                    <label>
-                        <span>Expiration Year</span>
-                        <input type="text" name="expirationYear" pattern="\d{4}" placeholder="YYYY" required />
-                    </label>
-                    <input type="hidden" name="cardType" id="card-type" value="" />
-                    <p class="card-type-display" id="card-type-display">Card Type: <span>Unknown</span></p>
-                </section>
-                <section class="form-section">
-                    <h3>Billing Address</h3>
-                    <label>
-                        <span>First Name</span>
-                        <input type="text" name="firstName" required />
-                    </label>
-                    <label>
-                        <span>Last Name</span>
-                        <input type="text" name="lastName" required />
-                    </label>
-                    <label>
-                        <span>Company</span>
-                        <input type="text" name="company" />
-                    </label>
-                    <label>
-                        <span>Address</span>
-                        <input type="text" name="address1" required />
-                    </label>
-                    <label>
-                        <span>City</span>
-                        <input type="text" name="locality" required />
-                    </label>
-                    <label>
-                        <span>State / Province</span>
-                        <input type="text" name="administrativeArea" required />
-                    </label>
-                    <label>
-                        <span>Postal Code</span>
-                        <input type="text" name="postalCode" required />
-                    </label>
-                    <label>
-                        <span>Email</span>
-                        <input type="email" name="billingEmail" required />
-                    </label>
-                    <label>
-                        <span>Phone Number</span>
-                        <input type="tel" name="phoneNumber" required />
-                    </label>
-                </section>
-                <div class="dialog-actions">
-                    <button type="submit" class="btn-primary" id="subscribeButton">Subscribe</button>
-                    <button type="button" class="btn-secondary" id="cancel-dialog">Cancel</button>
-                </div>
-            </form>
-        </dialog>
-        <div class="action-section">
-            <button id="checkout-button" class="btn-primary">
-                Subscribe
-                <svg viewBox="0 0 24 24" class="arrow-icon">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
+      <div class="pricing-cards">
+        <!-- Daily Plan -->
+        <label class="card" for="plan-daily">
+          <input type="radio" name="plan" id="plan-daily" value="daily" class="plan-input" />
+          <div class="card-content">
+            <div class="card-header">
+              <h2>Daily</h2>
+              <span class="badge">Flexible</span>
+            </div>
+            <div class="price">
+              <span class="currency">$</span>
+              <span class="amount">20</span>
+              <span class="period">/day</span>
+            </div>
+            <ul class="features">
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                 </svg>
-            </button>
-            <p class="terms">By continuing, you agree to our Terms of Service.</p>
-        </div>
+                24-hour full access
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                Standard support
+              </li>
+            </ul>
+          </div>
+          <div class="card-border"></div>
+        </label>
+
+        <!-- Weekly Plan -->
+        <label class="card popular" for="plan-weekly">
+          <input type="radio" name="plan" id="plan-weekly" value="weekly" class="plan-input" checked />
+          <div class="card-content">
+            <div class="popular-tag">Most Popular</div>
+            <div class="card-header">
+              <h2>Weekly</h2>
+            </div>
+            <div class="price">
+              <span class="currency">$</span>
+              <span class="amount">50</span>
+              <span class="period">/week</span>
+            </div>
+            <ul class="features">
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                7-day full access
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                Priority support
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                Save 28% vs Daily
+              </li>
+            </ul>
+          </div>
+          <div class="card-border"></div>
+        </label>
+
+        <!-- Monthly Plan -->
+        <label class="card" for="plan-monthly">
+          <input type="radio" name="plan" id="plan-monthly" value="monthly" class="plan-input" />
+          <div class="card-content">
+            <div class="card-header">
+              <h2>Monthly</h2>
+              <span class="badge premium">Best Value</span>
+            </div>
+            <div class="price">
+              <span class="currency">$</span>
+              <span class="amount">70</span>
+              <span class="period">/month</span>
+            </div>
+            <ul class="features">
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                30-day full access
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                24/7 Premium support
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+                Save 36% vs Daily
+              </li>
+            </ul>
+          </div>
+          <div class="card-border"></div>
+        </label>
+      </div>
+      <dialog id="payment-dialog" class="payment-dialog">
+        <form method="dialog" id="payment-form" class="payment-form">
+          <h2>Enter Payment Information</h2>
+          <section class="form-section">
+            <h3>Buyer Information</h3>
+            <label>
+              <span>Merchant Customer ID</span>
+              <input type="text" name="merchantCustomerID" required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="buyerEmail" required />
+            </label>
+          </section>
+          <section class="form-section">
+            <h3>Client Reference</h3>
+            <label>
+              <span>Reference Code</span>
+              <input type="text" name="clientReferenceCode" required />
+            </label>
+          </section>
+          <section class="form-section">
+            <h3>Payment Information</h3>
+            <label>
+              <span>Card Number</span>
+              <input type="text" name="cardNumber" id="card-number" minlength="13" maxlength="19" required />
+            </label>
+            <label>
+              <span>Expiration Month</span>
+              <input type="text" name="expirationMonth" pattern="(0[1-9]|1[0-2])" placeholder="MM" required />
+            </label>
+            <label>
+              <span>Expiration Year</span>
+              <input type="text" name="expirationYear" pattern="\d{4}" placeholder="YYYY" required />
+            </label>
+            <input type="hidden" name="cardType" id="card-type" value="" />
+            <p class="card-type-display" id="card-type-display">Card Type: <span>Unknown</span></p>
+          </section>
+          <section class="form-section">
+            <h3>Billing Address</h3>
+            <label>
+              <span>First Name</span>
+              <input type="text" name="firstName" required />
+            </label>
+            <label>
+              <span>Last Name</span>
+              <input type="text" name="lastName" required />
+            </label>
+            <label>
+              <span>Company</span>
+              <input type="text" name="company" />
+            </label>
+            <label>
+              <span>Address</span>
+              <input type="text" name="address1" required />
+            </label>
+            <label>
+              <span>City</span>
+              <input type="text" name="locality" required />
+            </label>
+            <label>
+              <span>State / Province</span>
+              <input type="text" name="administrativeArea" required />
+            </label>
+            <label>
+              <span>Postal Code</span>
+              <input type="text" name="postalCode" required />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="billingEmail" required />
+            </label>
+            <label>
+              <span>Phone Number</span>
+              <input type="tel" name="phoneNumber" required />
+            </label>
+          </section>
+          <div class="dialog-actions">
+            <button type="submit" class="btn-primary" id="subscribeButton">Subscribe</button>
+            <button type="button" class="btn-secondary" id="cancel-dialog">Cancel</button>
+          </div>
+        </form>
+      </dialog>
+      <div class="action-section">
+        <button id="checkout-button" class="btn-primary">
+          Subscribe
+          <svg viewBox="0 0 24 24" class="arrow-icon">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+        <p class="terms">By continuing, you agree to our Terms of Service.</p>
+      </div>
     </main>
 
     <script src="index.js"></script>
-</body>
-
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.20.0/axios.js"
+      integrity="sha512-6/5zO9B3GKTKl45L4FHRPB/d5PamwD37Gnz+GGa18atcadWWcC+UQjbXKNVkMN+IY6tPrJvN/h3Wn5dZgXEYKg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"></script>
+  </body>
 </html>
