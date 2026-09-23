@@ -27,13 +27,14 @@ app.use(
 
 app.use(express.json());
 
-const HOST = process.env.CYBERSOURCE_HOST;
+//Env variables for CyberSource API
+const HOST = process.env.CYBERSOURCE_HOST; // is "apitest.cybersource.com" for sandbox
 const MERCHANT_ID = process.env.CYBERSOURCE_MERCHANT_ID;
 const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
-const TOKEN_RESOURCE_PATH = process.env.CYBERSOURCE_TOKEN_URI;
-const SUBSCRIPTION_RESOURCE_PATH = process.env.CYBERSOURCE_SUBSCRIPTION_URI;
-const INSTRUMENT_IDENTIFIER_URI = process.env.CYBERSOURCE_INSTRUMENT_IDENTIFIER_URI;
+const TOKEN_RESOURCE_PATH = process.env.CYBERSOURCE_TOKEN_URI; // is /tms/v2/customers
+const SUBSCRIPTION_RESOURCE_PATH = process.env.CYBERSOURCE_SUBSCRIPTION_URI; // is /rbs/v1/subscriptions
+const INSTRUMENT_IDENTIFIER_URI = process.env.CYBERSOURCE_INSTRUMENT_IDENTIFIER_URI; // is /tms/v1/instrumentidentifiers
 
 const createDailySubscription = async (req, res) => {
   try {
