@@ -217,6 +217,14 @@
       <div id="buttonPaymentListContainer"></div>
       <div id="embeddedPaymentContainer"></div>
     </aside>
+
+    <dialog class="success-dialog" id="successDialog" aria-labelledby="successDialogTitle">
+      <div class="success-icon" aria-hidden="true">&#10003;</div>
+      <h2 id="successDialogTitle">Subscription complete</h2>
+      <p>Your subscription was created successfully.</p>
+      <pre class="subscription-result" id="subscriptionResult"></pre>
+      <button class="btn-secondary" id="closeSuccessDialog" type="button">Close</button>
+    </dialog>
   </body>
   <script src="https://cdn.jsdelivr.net/npm/axios@1.13.2/dist/axios.min.js"></script>
   <script src="./index.js" type="module"></script>

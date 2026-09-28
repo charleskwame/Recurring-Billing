@@ -4,6 +4,9 @@ const planButtons = document.querySelectorAll(".plan-button");
 const checkoutSidebar = document.getElementById("checkoutSidebar");
 const closeCheckoutButton = document.getElementById("closeCheckout");
 const statusMessage = document.getElementById("statusMessage");
+const successDialog = document.getElementById("successDialog");
+const subscriptionResult = document.getElementById("subscriptionResult");
+const closeSuccessDialogButton = document.getElementById("closeSuccessDialog");
 const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-frontend.vercel.app" : window.location.origin;
 
 const activateRecurringBilling = async (result, planKey) => {
@@ -114,6 +117,8 @@ const startWithVAS = async (captureContext, planKey) => {
       console.log("Payment result response:", response);
       console.log("Subscription result response:", response.data);
       statusMessage.textContent = "Subscription created successfully.";
+      subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+      successDialog?.showModal();
     } else {
       throw new Error("Unified Checkout returned no payment result.");
     }
@@ -216,3 +221,4 @@ const getSessionContext = async (event) => {
 
 planButtons.forEach((button) => button.addEventListener("click", getSessionContext));
 closeCheckoutButton?.addEventListener("click", () => checkoutSidebar?.classList.remove("is-open"));
+closeSuccessDialogButton?.addEventListener("click", () => successDialog?.close());

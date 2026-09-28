@@ -361,6 +361,29 @@ body {
 .success-dialog .btn-primary {
   min-width: 120px;
 }
+
+.success-dialog {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(59, 40, 31, 0.2);
+}
+
+.subscription-result {
+  max-height: 220px;
+  margin: 20px 0;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: #fffaf7;
+  color: var(--text-main);
+  font-family: "Courier New", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .form-section {
   margin-bottom: 1rem;
 }
