@@ -3,12 +3,16 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 const { createHeaders } = require("cybersource-auth");
+// const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const app = express();
-const allowedOrigins = ["https://recurring-billing-frontend.vercel.app", process.env.FRONTEND_ORIGIN]
-  .filter(Boolean)
-  .map((origin) => origin.replace(/\/+$/, ""));
+const allowedOrigins = [
+  "https://unified-checkout-frontend.vercel.app",
+  "https://reactjsimplementation.vercel.app",
+  "http://localhost:5173",
+  process.env.FRONTEND_ORIGIN,
+].filter(Boolean);
 
 app.use(
   cors({
@@ -27,16 +31,39 @@ app.use(
 
 app.use(express.json());
 
-//Env variables for CyberSource API
-const HOST = process.env.CYBERSOURCE_HOST; // is "apitest.cybersource.com" for sandbox
+const HOST = process.env.CYBERSOURCE_HOST;
 const MERCHANT_ID = process.env.CYBERSOURCE_MERCHANT_ID;
 const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
-const TOKEN_RESOURCE_PATH = process.env.CYBERSOURCE_TOKEN_URI; // is /tms/v2/customers
-const SUBSCRIPTION_RESOURCE_PATH = process.env.CYBERSOURCE_SUBSCRIPTION_URI; // is /rbs/v1/subscriptions
-const INSTRUMENT_IDENTIFIER_URI = process.env.CYBERSOURCE_INSTRUMENT_IDENTIFIER_URI; // is /tms/v1/instrumentidentifiers
+const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
+const resourcePath = "/uc/v1/sessions";
 
-const createDailySubscription = async (req, res) => {
+const decodeJwtPayload = (token) => {
+  try {
+    if (!token || typeof token !== "string") {
+      throw new Error("JWT is empty or invalid.");
+    }
+
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      throw new Error("Invalid JWT format.");
+    }
+
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+
+    const json = Buffer.from(base64, "base64").toString("utf8");
+
+    return JSON.parse(json);
+  } catch (error) {
+    console.error("Failed to decode JWT:", error);
+    return null;
+  }
+};
+
+const normalizedHost = HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+
+const createCheckoutSession = async (req, res) => {
   try {
     if (!HOST || !MERCHANT_ID || !API_KEY_ID || !SHARED_SECRET) {
       return res.status(500).json({
@@ -44,157 +71,37 @@ const createDailySubscription = async (req, res) => {
       });
     }
 
-    // return res.json(req.body);
+    const url = `https://${normalizedHost}${resourcePath}`;
 
-    const normalizedHost = HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "");
-    const url = `https://${normalizedHost}${TOKEN_RESOURCE_PATH}`;
+    const rawPayload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : req.body;
+    const payload = normalizeCheckoutPayload(rawPayload);
 
-    const rawBody = JSON.stringify(req.body);
+    const validationErrors = validateCheckoutPayload(payload);
 
-    const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", TOKEN_RESOURCE_PATH, rawBody, API_KEY_ID, SHARED_SECRET);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        error: "Invalid checkout-session payload.",
+        validationErrors,
+      });
+    }
 
-    const response = await axios.post(url, req.body, { headers, timeout: 10000 });
+    const rawBody = JSON.stringify(payload);
 
-    const customerTokenResponse = response.data;
+    const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", resourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
 
-    if (!customerTokenResponse) {
+    const response = await axios.post(url, payload, { headers, timeout: 10000 });
+
+    const captureContext = response.data;
+
+    if (!captureContext) {
       return res.status(500).json({
-        error: "CyberSource returned a 200 response, but no token was generated.",
+        error: "CyberSource returned a 200 response, but no Capture Context token was generated.",
         responseHeaders: response.headers,
         rawResponse: response.data,
       });
     }
 
-    const customerId = customerTokenResponse.id;
-
-    if (!customerId) {
-      return res.status(500).json({
-        error: "Failed to retrieve Customer ID from token response.",
-      });
-    }
-
-    // return res.json(customerTokenResponse)
-
-    // Extract card and billTo from request
-    const cardData = req.body.paymentInformation?.card || req.body.card;
-    const billToData = req.body.billTo;
-
-    if (!cardData || !cardData.number) {
-      return res.status(400).json({ error: "Card number is missing in the payload." });
-    }
-
-    // --- Step 2: Create Instrument Identifier ---
-    // const instrumentIdentifierPath = "/tms/v1/instrumentidentifiers";
-    const instrumentIdentifierUrl = `https://${normalizedHost}${INSTRUMENT_IDENTIFIER_URI}`;
-
-    const instrumentIdentifierPayload = {
-      card: {
-        number: cardData.number,
-      },
-    };
-
-    const rawInstrumentIdentifierBody = JSON.stringify(instrumentIdentifierPayload);
-    const instrumentIdentifierHeaders = createHeaders(
-      MERCHANT_ID,
-      normalizedHost,
-      "post",
-      INSTRUMENT_IDENTIFIER_URI,
-      rawInstrumentIdentifierBody,
-      API_KEY_ID,
-      SHARED_SECRET,
-    );
-
-    let instrumentIdentifierId;
-    try {
-      const instrumentIdentifierResponse = await axios.post(instrumentIdentifierUrl, instrumentIdentifierPayload, {
-        headers: instrumentIdentifierHeaders,
-        timeout: 10000,
-      });
-      instrumentIdentifierId = instrumentIdentifierResponse.data.id;
-    } catch (error) {
-      console.error("Instrument Identifier Error:", error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || "Failed to create Instrument Identifier");
-    }
-    // return res.json(instrumentIdentifierId);
-
-    // --- Step 3: Create Payment Instrument ---
-    const paymentInstrumentsLink = customerTokenResponse._links.paymentInstruments.href;
-    const paymentInstrumentUrl = `https://${normalizedHost}${paymentInstrumentsLink}`;
-
-    const paymentInstrumentPayload = {
-      card: {
-        expirationMonth: cardData.expirationMonth,
-        expirationYear: cardData.expirationYear,
-        type: cardData.type,
-      },
-      billTo: billToData,
-      instrumentIdentifier: {
-        id: instrumentIdentifierId,
-      },
-    };
-
-    const rawPaymentInstrumentBody = JSON.stringify(paymentInstrumentPayload);
-    const paymentInstrumentHeaders = createHeaders(
-      MERCHANT_ID,
-      normalizedHost,
-      "post",
-      paymentInstrumentsLink,
-      rawPaymentInstrumentBody,
-      API_KEY_ID,
-      SHARED_SECRET,
-    );
-
-    const paymentInstrumentResponse = await axios.post(paymentInstrumentUrl, paymentInstrumentPayload, {
-      headers: paymentInstrumentHeaders,
-      timeout: 10000,
-    });
-
-    const paymentInstrumentTokenResponse = paymentInstrumentResponse.data;
-
-    if (!paymentInstrumentTokenResponse) {
-      return res.status(500).json({
-        error: "CyberSource returned a 200 response, but no token was generated.",
-        responseHeaders: paymentInstrumentResponse.headers,
-        rawResponse: paymentInstrumentResponse.data,
-      });
-    }
-
-    // const paymentInstrumentToken = paymentInstrumentTokenResponse;
-    // return res.json(paymentInstrumentTokenResponse)
-
-    const subscriptionData = {
-      clientReferenceInformation: {
-        code: `subscription_${Date.now()}`,
-      },
-      subscriptionInformation: {
-        planId: "7896588237846374604803",
-        name: "Daily 20 Test",
-        startDate: `${new Date().toISOString()}`,
-      },
-      paymentInformation: {
-        customer: {
-          id: customerId,
-        },
-      },
-    };
-
-    // return res.json(subscriptionData)
-
-    const rawSubscriptionBody = JSON.stringify(subscriptionData);
-    const subscriptionUrl = `https://${normalizedHost}${SUBSCRIPTION_RESOURCE_PATH}`;
-    const subscriptionHeaders = createHeaders(
-      MERCHANT_ID,
-      normalizedHost,
-      "post",
-      SUBSCRIPTION_RESOURCE_PATH,
-      rawSubscriptionBody,
-      API_KEY_ID,
-      SHARED_SECRET,
-    );
-
-    const subscriptionResponse = await axios.post(subscriptionUrl, subscriptionData, { headers: subscriptionHeaders, timeout: 10000 });
-
-    return res.json(subscriptionResponse.data);
+    return res.json(captureContext);
   } catch (error) {
     console.error("CyberSource API Error:", error.response?.data || error.message);
 
@@ -209,7 +116,153 @@ const createDailySubscription = async (req, res) => {
   }
 };
 
-app.post("/subscribe-daily", createDailySubscription);
+const validateCheckoutPayload = (payload) => {
+  const errors = [];
+
+  if (!Array.isArray(payload.targetOrigins) || payload.targetOrigins.length === 0) {
+    errors.push("targetOrigins must be a non-empty array.");
+  }
+
+  if (typeof payload.clientVersion !== "string" || payload.clientVersion.trim().length === 0) {
+    errors.push("clientVersion is required.");
+  }
+
+  if (typeof payload.country !== "string" || payload.country.trim().length === 0) {
+    errors.push("country is required.");
+  }
+
+  if (typeof payload.locale !== "string" || payload.locale.trim().length === 0) {
+    errors.push("locale is required.");
+  }
+
+  const orderInfo = payload.data?.orderInformation || payload.orderInformation;
+
+  if (typeof orderInfo !== "object" || orderInfo === null || typeof orderInfo.amountDetails !== "object" || orderInfo.amountDetails === null) {
+    errors.push("data.orderInformation.amountDetails is required.");
+    return errors;
+  }
+
+  const amountDetails = orderInfo.amountDetails;
+
+  if (typeof amountDetails.totalAmount !== "string" || amountDetails.totalAmount.trim().length === 0) {
+    errors.push("data.orderInformation.amountDetails.totalAmount is required.");
+  }
+
+  if (typeof amountDetails.currency !== "string" || amountDetails.currency.trim().length === 0) {
+    errors.push("data.orderInformation.amountDetails.currency is required.");
+  }
+
+  return errors;
+};
+
+const normalizeCheckoutPayload = (rawPayload) => {
+  const payload = rawPayload && typeof rawPayload === "object" ? { ...rawPayload } : {};
+
+  if (typeof payload.data !== "object" || payload.data === null) {
+    payload.data = {};
+  }
+
+  if (payload.orderInformation && !payload.data.orderInformation) {
+    payload.data.orderInformation = payload.orderInformation;
+  }
+
+  delete payload.orderInformation;
+  return payload;
+};
+
+const verifyPaymentResult = async (req, res) => {
+  try {
+    const { completeResponse } = req.body;
+
+    if (!completeResponse) {
+      return res.status(400).json({
+        error: "completeResponse JWT is required",
+      });
+    }
+
+    const decoded = decodeJwtPayload(completeResponse);
+
+    if (!decoded) {
+      return res.status(400).json({
+        error: "Unable to decode payment result JWT",
+      });
+    }
+
+    console.log("Decoded payment result:", decoded);
+
+    return res.status(200).json({
+      success: true,
+      decoded,
+    });
+  } catch (error) {
+    console.error("Payment result error:", error);
+
+    return res.status(500).json({
+      error: "Failed to process payment result",
+    });
+  }
+};
+
+const activateRecurringBilling = async (req, res) => {
+  try {
+    const decoded = decodeJwtPayload(req.body?.result);
+    const transactionId = decoded?.id;
+
+    if (!transactionId) {
+      return res.status(400).json({
+        error: "Transaction ID is missing from the decoded result",
+      });
+    }
+
+    if (!RECURRING_PLAN_ID) {
+      return res.status(500).json({
+        error: "CYBERSOURCE_RECURRING_PLAN_ID is not configured.",
+      });
+    }
+
+    // const startDateFormatted = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+    const subscriptionData = {
+      clientReferenceInformation: {
+        code: `subscription_${Date.now()}`,
+      },
+      subscriptionInformation: {
+        planId: RECURRING_PLAN_ID,
+        name: "Daily 20 Test",
+        startDate: `${new Date().toISOString()}`,
+      },
+    };
+
+    const rawBody = JSON.stringify(subscriptionData);
+    const rbsResourcePath = `/rbs/v1/subscriptions/follow-ons/${transactionId}`;
+
+    // Generate authentication headers
+    const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", rbsResourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
+
+    const response = await axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
+
+    return res.json({
+      success: true,
+      response: response?.data,
+    });
+  } catch (error) {
+    console.error("Recurring billing error:", error.response?.data || error.message);
+    const upstreamError = error.response?.data;
+
+    return res.status(error.response?.status || 500).json({
+      error: upstreamError?.message || "Failed to process recurring billing",
+      details: error.response?.data ?? null,
+    });
+  }
+};
+
+app.post("/activate-recurring-billing", activateRecurringBilling);
+
+app.post("/checkout-session", createCheckoutSession);
+
+app.post("/verify-payment", verifyPaymentResult);
+
+console.log(`Backend server started at ${new Date().toISOString()}`);
 
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3000;

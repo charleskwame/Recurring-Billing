@@ -3,237 +3,179 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Subscription Plans</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="index.css" />
-  </head>
+    <title>Unified Checkout Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+        color: #172033;
+        background: #eef3f7;
+      }
 
+      body {
+        background:
+          radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.9), transparent 34%),
+          linear-gradient(135deg, #eaf1f5 0%, #f8f5ef 52%, #dfe9e8 100%);
+        margin: 0;
+        padding: 32px 20px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+
+      #unified-checkout-container {
+        width: 100%;
+        max-width: 430px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 22px 55px rgba(35, 54, 67, 0.16);
+        box-sizing: border-box;
+        backdrop-filter: blur(12px);
+      }
+
+      .checkout-eyebrow {
+        margin: 0 0 8px;
+        color: #147d78;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      #unified-checkout-container p {
+        margin: 0;
+        color: #53606d;
+      }
+
+      #orderSummaryTitle {
+        margin-bottom: 22px;
+        color: #172033;
+        font-family: Georgia, serif;
+        font-size: 30px;
+        line-height: 1.1;
+      }
+
+      #proceedToPayment {
+        width: 100%;
+        padding: 15px 18px;
+        margin-top: 24px;
+        background-color: #147d78;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 160ms ease, transform 160ms ease, opacity 160ms ease;
+      }
+
+      #proceedToPayment:hover:not(:disabled) {
+        background-color: #0e615e;
+        transform: translateY(-1px);
+      }
+
+      #proceedToPayment:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+
+      #buttonPaymentListContainer,
+      #embeddedPaymentContainer {
+        width: 100%;
+      }
+
+      #checkoutSidebar {
+        position: fixed;
+        z-index: 10;
+        top: 0;
+        right: 0;
+        display: grid;
+        align-content: start;
+        gap: 18px;
+        width: min(440px, 100vw);
+        height: 100vh;
+        padding: 32px 24px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: -18px 0 45px rgba(35, 54, 67, 0.18);
+        transform: translateX(100%);
+        transition: transform 220ms ease;
+      }
+
+      #unified-checkout-container.is-initializing + #checkoutSidebar {
+        transform: translateX(0);
+      }
+
+      #orderSummary {
+        display: grid;
+        gap: 18px;
+        transition: opacity 180ms ease, transform 180ms ease;
+      }
+
+      #unified-checkout-container.is-initializing #orderSummary {
+        display: none;
+      }
+
+      #priceDiv {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 18px;
+        border-top: 1px solid #e2e8eb;
+      }
+
+      #itemName {
+        color: #172033;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      #priceDiv p:last-child {
+        color: #172033;
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 18px 14px;
+        }
+
+        #unified-checkout-container {
+          padding: 22px;
+        }
+      }
+    </style>
+  </head>
   <body>
-    <div class="background-effects">
-      <div class="blob blob-1"></div>
-      <div class="blob blob-2"></div>
+    <div id="unified-checkout-container">
+      <p class="checkout-eyebrow">Unified Checkout Demo</p>
+      <div id="orderSummary">
+        <p id="orderSummaryTitle">Order Summary</p>
+        <p id="itemName">1x BMX Racing Bike</p>
+        <div id="priceDiv">
+          <p>GHC</p>
+          <p>300.00</p>
+        </div>
+      </div>
+      <button id="proceedToPayment">Proceed to Payment</button>
     </div>
 
-    <main class="container">
-      <header class="header">
-        <h1>Choose your plan</h1>
-        <p>Select a subscription that fits your lifestyle. Cancel anytime.</p>
-      </header>
+    <aside id="checkoutSidebar" aria-label="Payment checkout">
+      <h2>Complete Payment</h2>
+      <!-- Container for payment option buttons (Google Pay, Apple Pay, Card, etc.) -->
+      <div id="buttonPaymentListContainer"></div>
 
-      <div class="pricing-cards">
-        <label class="card" for="plan-daily">
-          <input type="radio" name="plan" id="plan-daily" value="daily" class="plan-input" />
-          <div class="card-content">
-            <div class="card-header">
-              <h2>Daily</h2>
-              <span class="badge">Flexible</span>
-            </div>
-            <div class="price">
-              <span class="currency">$</span>
-              <span class="amount">20</span>
-              <span class="period">/day</span>
-            </div>
-            <ul class="features">
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                24-hour full access
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                Standard support
-              </li>
-            </ul>
-          </div>
-          <div class="card-border"></div>
-        </label>
-
-        <label class="card popular" for="plan-weekly">
-          <input type="radio" name="plan" id="plan-weekly" value="weekly" class="plan-input" checked />
-          <div class="card-content">
-            <div class="popular-tag">Most Popular</div>
-            <div class="card-header">
-              <h2>Weekly</h2>
-            </div>
-            <div class="price">
-              <span class="currency">$</span>
-              <span class="amount">50</span>
-              <span class="period">/week</span>
-            </div>
-            <ul class="features">
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                7-day full access
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                Priority support
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                Save 28% vs Daily
-              </li>
-            </ul>
-          </div>
-          <div class="card-border"></div>
-        </label>
-
-        <label class="card" for="plan-monthly">
-          <input type="radio" name="plan" id="plan-monthly" value="monthly" class="plan-input" />
-          <div class="card-content">
-            <div class="card-header">
-              <h2>Monthly</h2>
-              <span class="badge premium">Best Value</span>
-            </div>
-            <div class="price">
-              <span class="currency">$</span>
-              <span class="amount">70</span>
-              <span class="period">/month</span>
-            </div>
-            <ul class="features">
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                30-day full access
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                24/7 Premium support
-              </li>
-              <li>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-                Save 36% vs Daily
-              </li>
-            </ul>
-          </div>
-          <div class="card-border"></div>
-        </label>
-      </div>
-      <dialog id="payment-dialog" class="payment-dialog">
-        <form method="dialog" id="payment-form" class="payment-form">
-          <h2>Enter Payment Information</h2>
-          <h6>Note: All fields are required</h6>
-          <section class="form-section">
-            <!-- <h3>Buyer Information</h3> -->
-            <label>
-              <span>Merchant Customer ID</span>
-              <input type="text" name="merchantCustomerID" required />
-            </label>
-            <label>
-              <span>Email</span>
-              <input type="email" name="buyerEmail" required />
-            </label>
-          </section>
-          <!-- <section class="form-section">
-            <h3>Client Reference</h3>
-            <label>
-              <span>Reference Code</span>
-              <input type="text" name="clientReferenceCode" required />
-            </label>
-          </section> -->
-          <section class="form-section">
-            <!-- <h3>Payment Information</h3> -->
-            <label>
-              <span>Card Number</span>
-              <input type="text" name="cardNumber" id="card-number" minlength="13" maxlength="19" required />
-            </label>
-            <label>
-              <span>Expiration Month</span>
-              <input type="text" name="expirationMonth" pattern="(0[1-9]|1[0-2])" placeholder="MM" required />
-            </label>
-            <label>
-              <span>Expiration Year</span>
-              <input type="text" name="expirationYear" pattern="\d{4}" placeholder="YYYY" required />
-            </label>
-            <input type="hidden" name="cardType" id="card-type" value="" />
-            <p class="card-type-display" id="card-type-display">Card Type: <span>Unknown</span></p>
-          </section>
-          <section class="form-section">
-            <!-- <h3>Billing Address</h3> -->
-            <label>
-              <span>First Name</span>
-              <input type="text" name="firstName" required />
-            </label>
-            <label>
-              <span>Last Name</span>
-              <input type="text" name="lastName" required />
-            </label>
-            <label>
-              <span>Company</span>
-              <input type="text" name="company" />
-            </label>
-            <label>
-              <span>Address</span>
-              <input type="text" name="address1" required />
-            </label>
-            <label>
-              <span>City</span>
-              <input type="text" name="locality" required />
-            </label>
-            <label>
-              <span>State / Province</span>
-              <input type="text" name="administrativeArea" required />
-            </label>
-            <label>
-              <span>Postal Code</span>
-              <input type="text" name="postalCode" required />
-            </label>
-            <label>
-              <span>Email</span>
-              <input type="email" name="billingEmail" required />
-            </label>
-            <label>
-              <span>Phone Number</span>
-              <input type="tel" name="phoneNumber" required />
-            </label>
-          </section>
-          <div class="dialog-actions">
-            <button type="submit" class="btn-primary" id="subscribeButton">Subscribe</button>
-            <button type="button" class="btn-secondary" id="cancel-dialog">Cancel</button>
-          </div>
-        </form>
-      </dialog>
-      <dialog id="success-dialog" class="success-dialog">
-        <form method="dialog">
-          <div class="success-icon" aria-hidden="true">&#10003;</div>
-          <h2>Subscription successful</h2>
-          <p>Your subscription is active and ready to use.</p>
-          <p class="subscription-id">Subscription ID: <strong id="subscription-id"></strong></p>
-          <button type="submit" class="btn-primary">Done</button>
-        </form>
-      </dialog>
-      <div class="action-section">
-        <button id="checkout-button" class="btn-primary">
-          Subscribe
-          <svg viewBox="0 0 24 24" class="arrow-icon">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-        <p class="terms">By continuing, you agree to our Terms of Service.</p>
-      </div>
-    </main>
-
-    <script src="index.js"></script>
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.20.0/axios.js"
-      integrity="sha512-6/5zO9B3GKTKl45L4FHRPB/d5PamwD37Gnz+GGa18atcadWWcC+UQjbXKNVkMN+IY6tPrJvN/h3Wn5dZgXEYKg=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"></script>
+      <!-- Container for embedded payment forms -->
+      <div id="embeddedPaymentContainer"></div>
+    </aside>
   </body>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.13.2/dist/axios.min.js"></script>
+  <script src="./index.js" type="module"></script>
 </html>
