@@ -2,7 +2,7 @@ const proceedToPaymentButton = document.getElementById("proceedToPayment");
 const checkoutContainer = document.getElementById("unified-checkout-container");
 
 const paymentPayload = {
-  targetOrigins: ["https://unified-checkout-frontend.vercel.app"],
+  targetOrigins: ["https://recurring-billing-frontend.vercel.app"],
   clientVersion: "1.0",
   country: "US",
   locale: "en_US",
