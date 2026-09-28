@@ -29,9 +29,28 @@ const HOST = process.env.CYBERSOURCE_HOST;
 const MERCHANT_ID = process.env.CYBERSOURCE_MERCHANT_ID;
 const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
-const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
 const resourcePath = "/uc/v1/sessions";
 const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
+const PLANS = {
+  daily: {
+    id: process.env.CYBERSOURCE_RECURRING_PLAN_ID,
+    name: "Daily 20 Test",
+    amount: "20.00",
+    interval: "day",
+  },
+  weekly: {
+    id: "7906006439496154804804",
+    name: "Weekly 50 Test",
+    amount: "50.00",
+    interval: "week",
+  },
+  monthly: {
+    id: "7906006786536213404801",
+    name: "Monthly 100 test",
+    amount: "100.00",
+    interval: "month",
+  },
+};
 const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]; // Delays in milliseconds for retry attempts
 const FOLLOW_ON_MAX_ATTEMPTS = FOLLOW_ON_RETRY_DELAYS_MS.length + 1;
 
@@ -64,6 +83,16 @@ const decodeJwtPayload = (token) => {
 
 const normalizedHost = HOST ? HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
 
+const getPlan = (planKey) => {
+  const plan = PLANS[planKey];
+
+  if (!plan?.id) {
+    return null;
+  }
+
+  return plan;
+};
+
 const createCheckoutSession = async (req, res) => {
   try {
     if (!HOST || !MERCHANT_ID || !API_KEY_ID || !SHARED_SECRET) {
@@ -74,12 +103,29 @@ const createCheckoutSession = async (req, res) => {
 
     const url = `https://${normalizedHost}${resourcePath}`;
 
-    const payload = req.body;
-    const rawBody = JSON.stringify(payload);
+    const plan = getPlan(req.body?.planKey);
+
+    if (!plan) {
+      return res.status(400).json({ error: "A valid subscription plan is required." });
+    }
+
+    const { planKey, ...checkoutPayload } = req.body;
+    checkoutPayload.data = {
+      ...checkoutPayload.data,
+      orderInformation: {
+        ...checkoutPayload.data?.orderInformation,
+        amountDetails: {
+          ...checkoutPayload.data?.orderInformation?.amountDetails,
+          totalAmount: plan.amount,
+          currency: "USD",
+        },
+      },
+    };
+    const rawBody = JSON.stringify(checkoutPayload);
 
     const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", resourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
 
-    const response = await axios.post(url, payload, { headers, timeout: 10000 });
+    const response = await axios.post(url, checkoutPayload, { headers, timeout: 10000 });
 
     const captureContext = response.data;
 
@@ -106,14 +152,14 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
-const createFollowOnSubscription = (transactionId) => {
+const createFollowOnSubscription = (transactionId, plan) => {
   const subscriptionData = {
     clientReferenceInformation: {
       code: `subscription_${transactionId}`,
     },
     subscriptionInformation: {
-      planId: RECURRING_PLAN_ID,
-      name: "Daily 20 Test",
+      planId: plan.id,
+      name: plan.name,
       startDate: formatSubscriptionStartDate(),
     },
   };
@@ -142,6 +188,7 @@ const activateRecurringBilling = async (req, res) => {
   try {
     const decoded = decodeJwtPayload(req.body?.result);
     const transactionId = decoded?.id;
+    const plan = getPlan(req.body?.planKey);
 
     if (!transactionId) {
       return res.status(400).json({
@@ -149,9 +196,9 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    if (!RECURRING_PLAN_ID) {
-      return res.status(500).json({
-        error: "CYBERSOURCE_RECURRING_PLAN_ID is not configured.",
+    if (!plan) {
+      return res.status(400).json({
+        error: "A valid subscription plan is required.",
       });
     }
 
@@ -159,7 +206,7 @@ const activateRecurringBilling = async (req, res) => {
 
     for (let attempt = 1; attempt <= FOLLOW_ON_MAX_ATTEMPTS; attempt += 1) {
       try {
-        const response = await createFollowOnSubscription(transactionId);
+        const response = await createFollowOnSubscription(transactionId, plan);
 
         return res.json({
           success: true,

@@ -1,28 +1,33 @@
 const BACKEND_URL = "https://recurring-billing-backend.vercel.app";
 
-const proceedToPaymentButton = document.getElementById("proceedToPayment");
-const checkoutContainer = document.getElementById("unified-checkout-container");
+const planButtons = document.querySelectorAll(".plan-button");
+const checkoutSidebar = document.getElementById("checkoutSidebar");
+const closeCheckoutButton = document.getElementById("closeCheckout");
+const statusMessage = document.getElementById("statusMessage");
+const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-frontend.vercel.app" : window.location.origin;
 
-const activateRecurringBilling = async (result) => {
+const activateRecurringBilling = async (result, planKey) => {
   return axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
     result,
+    planKey,
   });
 };
 
-const paymentPayload = {
-  targetOrigins: ["https://recurring-billing-frontend.vercel.app"],
+const paymentPayload = (planKey) => ({
+  planKey,
+  targetOrigins: [checkoutOrigin],
   clientVersion: "1.0",
   country: "US",
   locale: "en_US",
   data: {
     orderInformation: {
       amountDetails: {
-        totalAmount: "20.00",
+        totalAmount: "0.00",
         currency: "USD",
       },
     },
   },
-};
+});
 
 const decodeJwtPayload = (jwt) => {
   try {
@@ -86,7 +91,7 @@ const loadCyberSourceSdk = (clientLibrary, integrity) => {
   });
 };
 
-const startWithVAS = async (captureContext) => {
+const startWithVAS = async (captureContext, planKey) => {
   let client = null;
   let checkout = null;
 
@@ -104,11 +109,11 @@ const startWithVAS = async (captureContext) => {
     console.log(result);
 
     if (result) {
-      const response = await activateRecurringBilling(result);
+      const response = await activateRecurringBilling(result, planKey);
 
       console.log("Payment result response:", response);
       console.log("Subscription result response:", response.data);
-      alert(`Subscription response:\n${JSON.stringify(response.data, null, 2)}`);
+      statusMessage.textContent = "Subscription created successfully.";
     } else {
       throw new Error("Unified Checkout returned no payment result.");
     }
@@ -144,14 +149,16 @@ const startWithVAS = async (captureContext) => {
 };
 
 const getSessionContext = async (event) => {
-  let isProcessing = true;
-  proceedToPaymentButton.innerHTML = `${isProcessing ? "Loading Checkout, Please Wait..." : "Proceed to Payment"}`;
-  proceedToPaymentButton.setAttribute("disabled", isProcessing);
-  checkoutContainer?.classList.add("is-initializing");
+  const button = event.currentTarget;
+  const planKey = button.dataset.planKey;
+  button.disabled = true;
+  button.textContent = "Loading checkout...";
+  statusMessage.textContent = "Preparing secure checkout...";
+  checkoutSidebar?.classList.add("is-open");
   event.preventDefault();
 
   try {
-    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload);
+    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload(planKey));
 
     const captureContext = response.data;
 
@@ -181,11 +188,10 @@ const getSessionContext = async (event) => {
     await loadCyberSourceSdk(clientLibrary, integrity);
 
     if (window.VAS && typeof window.VAS.UnifiedCheckout === "function") {
-      await startWithVAS(captureContext);
-      isProcessing = false;
-      proceedToPaymentButton.innerHTML = `${isProcessing ? "Loading Checkout, Please Wait..." : "Proceed to Payment"}`;
-      proceedToPaymentButton.removeAttribute("disabled");
-      checkoutContainer?.classList.remove("is-initializing");
+      await startWithVAS(captureContext, planKey);
+      button.disabled = false;
+      button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
+      statusMessage.textContent = "Payment complete. Your subscription is active.";
       return;
     }
 
@@ -200,17 +206,13 @@ const getSessionContext = async (event) => {
       console.error("Backend error details:", JSON.stringify(backendError.details, null, 2));
     }
 
-    alert("Unable to initialize payment. Please check the browser console for details.");
+    statusMessage.textContent = backendError?.error || "Unable to initialize payment. Please try again.";
   }
 
-  isProcessing = false;
-  proceedToPaymentButton.innerHTML = `${isProcessing ? "Loading Checkout, Please Wait..." : "Proceed to Payment"}`;
-  proceedToPaymentButton.removeAttribute("disabled");
-  checkoutContainer?.classList.remove("is-initializing");
+  button.disabled = false;
+  button.innerHTML = `Choose ${planKey} <span aria-hidden="true">&rarr;</span>`;
+  checkoutSidebar?.classList.remove("is-open");
 };
 
-if (!proceedToPaymentButton) {
-  console.error("Could not find #proceedToPayment button.");
-} else {
-  proceedToPaymentButton.addEventListener("click", getSessionContext);
-}
+planButtons.forEach((button) => button.addEventListener("click", getSessionContext));
+closeCheckoutButton?.addEventListener("click", () => checkoutSidebar?.classList.remove("is-open"));

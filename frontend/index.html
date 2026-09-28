@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Unified Checkout Demo</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./index.css" />
     <meta name="description" content="Unified Checkout demo with recurring billing" />
     <style>
       :root {
@@ -73,7 +74,10 @@
         font-size: 16px;
         font-weight: 700;
         cursor: pointer;
-        transition: background-color 160ms ease, transform 160ms ease, opacity 160ms ease;
+        transition:
+          background-color 160ms ease,
+          transform 160ms ease,
+          opacity 160ms ease;
       }
 
       #proceedToPayment:hover:not(:disabled) {
@@ -117,7 +121,9 @@
       #orderSummary {
         display: grid;
         gap: 18px;
-        transition: opacity 180ms ease, transform 180ms ease;
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
       }
 
       #unified-checkout-container.is-initializing #orderSummary {
@@ -156,25 +162,59 @@
     </style>
   </head>
   <body>
-    <div id="unified-checkout-container">
-      <p class="checkout-eyebrow">Unified Checkout Demo</p>
-      <div id="orderSummary">
-        <p id="orderSummaryTitle">Order Summary</p>
-        <p id="itemName">1x BMX Racing Bike</p>
-        <div id="priceDiv">
-          <p>GHC</p>
-          <p>300.00</p>
-        </div>
-      </div>
-      <button id="proceedToPayment">Proceed to Payment</button>
+    <div class="background-effects" aria-hidden="true">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
     </div>
 
-    <aside id="checkoutSidebar" aria-label="Payment checkout">
-      <h2>Complete Payment</h2>
-      <!-- Container for payment option buttons (Google Pay, Apple Pay, Card, etc.) -->
-      <div id="buttonPaymentListContainer"></div>
+    <main class="container">
+      <header class="header">
+        <p class="eyebrow">Recurring billing</p>
+        <h1>Choose your rhythm.</h1>
+        <p>Simple plans for steady progress. Cancel whenever you need.</p>
+      </header>
 
-      <!-- Container for embedded payment forms -->
+      <section class="pricing-cards" aria-label="Subscription plans">
+        <article class="card">
+          <div class="card-header">
+            <h2>Daily 20 Test</h2>
+            <span class="badge">Daily</span>
+          </div>
+          <p class="price"><span class="currency">$</span><span class="amount">20</span><span class="period">/ day</span></p>
+          <p class="plan-description">A small daily commitment to keep momentum moving.</p>
+          <button class="btn-primary plan-button" data-plan-key="daily" type="button">Choose daily <span aria-hidden="true">&rarr;</span></button>
+        </article>
+
+        <article class="card popular">
+          <span class="popular-tag">Most flexible</span>
+          <div class="card-header">
+            <h2>Weekly 50 Test</h2>
+            <span class="badge premium">Weekly</span>
+          </div>
+          <p class="price"><span class="currency">$</span><span class="amount">50</span><span class="period">/ week</span></p>
+          <p class="plan-description">A weekly cadence with more room to get things done.</p>
+          <button class="btn-primary plan-button" data-plan-key="weekly" type="button">Choose weekly <span aria-hidden="true">&rarr;</span></button>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <h2>Monthly 100 test</h2>
+            <span class="badge">Monthly</span>
+          </div>
+          <p class="price"><span class="currency">$</span><span class="amount">100</span><span class="period">/ month</span></p>
+          <p class="plan-description">The calmest plan for a longer, uninterrupted run.</p>
+          <button class="btn-primary plan-button" data-plan-key="monthly" type="button">Choose monthly <span aria-hidden="true">&rarr;</span></button>
+        </article>
+      </section>
+
+      <p class="status-message" id="statusMessage" role="status" aria-live="polite"></p>
+    </main>
+
+    <aside class="checkout-sidebar" id="checkoutSidebar" aria-label="Payment checkout">
+      <button class="close-checkout" id="closeCheckout" type="button" aria-label="Close payment checkout">&times;</button>
+      <p class="eyebrow">Secure checkout</p>
+      <h2>Complete payment</h2>
+      <div id="buttonPaymentListContainer"></div>
       <div id="embeddedPaymentContainer"></div>
     </aside>
   </body>
