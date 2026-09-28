@@ -212,7 +212,9 @@ const verifyPaymentResult = async (req, res) => {
 };
 
 // The follow-on endpoint reports "not indexed yet" as a plain INVALID_DATA response without any
+
 // field level details, so responses without a details array (and upstream gateway errors) are the
+
 // only ones that are worth retrying. Field level validation problems are reported straight away.
 const isActivationRetryable = (status, data) => {
   if (status === 502 || status === 503 || status === 504) {

@@ -1,7 +1,7 @@
 const BACKEND_URL = "https://recurring-billing-backend.vercel.app";
 
-// CyberSource only indexes a completed payment for follow-on subscription creation a few seconds
-// after it happens, so activation is retried before giving up.
+// CyberSource only indexes a completed payment for follow-on subscription creation a few seconds after it happens, so activation is retried before giving up.
+
 const ACTIVATION_MAX_ATTEMPTS = 6;
 const ACTIVATION_RETRY_DELAY_MS = 3000;
 
@@ -11,7 +11,9 @@ const checkoutContainer = document.getElementById("unified-checkout-container");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The backend answers 409 + retryable:true (or an upstream gateway error) while the payment is
+
 // still being indexed, and that is the only case where retrying the activation makes sense.
+
 const isActivationRetryable = (error) => {
   if (error?.response?.data?.retryable) {
     return true;
@@ -29,9 +31,13 @@ const isActivationRetryable = (error) => {
 const activateRecurringBilling = async (result) => {
   for (let attempt = 1; attempt <= ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
-        result,
-      });
+      return await axios
+        .post(`${BACKEND_URL}/activate-recurring-billing`, {
+          result,
+        })
+        .then(() => {
+          window.alert("Recurring billing activated successfully!" + result);
+        });
     } catch (error) {
       const isLastAttempt = attempt === ACTIVATION_MAX_ATTEMPTS;
 
