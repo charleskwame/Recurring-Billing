@@ -56,7 +56,7 @@ const decodeJwtPayload = (token) => {
   }
 };
 
-const normalizedHost = HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+const normalizedHost = HOST ? HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
 
 const createCheckoutSession = async (req, res) => {
   try {
