@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://recurring-billing-backend.vercel.app";
+const BACKEND_URL = "https://recurring-billing-backend-jur2rdxst-charleskwames-projects.vercel.app";
 
 // CyberSource only indexes a completed payment for follow-on subscription creation a few seconds after it happens, so activation is retried before giving up.
 
@@ -68,7 +68,7 @@ const activateRecurringBilling = async (result) => {
 };
 
 const paymentPayload = {
-  targetOrigins: ["https://recurring-billing-frontend.vercel.app"],
+  targetOrigins: ["https://recurring-billing-frontend-9a0enftx4-charleskwames-projects.vercel.app"],
   clientVersion: "1.0",
   country: "US",
   locale: "en_US",
