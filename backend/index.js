@@ -32,6 +32,19 @@ const API_KEY_ID = process.env.CYBERSOURCE_API_KEY_ID;
 const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
 const resourcePath = "/uc/v1/sessions";
+const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
+
+// CyberSource only indexes a payment for follow-on lookups a few seconds after the payment is
+// completed by Unified Checkout. Until the index catches up the follow-on API answers with a bare
+// INVALID_REQUEST/INVALID_DATA (or a transient BAD_GATEWAY from its transaction search service),
+// so the request is retried for a short while before reporting a failure.
+const RECURRING_ACTIVATION_TIMEOUT_MS = 7000;
+const RECURRING_ACTIVATION_RETRY_DELAY_MS = 2500;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Format required by the Subscriptions API: YYYY-MM-DDThh:mm:ssZ
+const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 const decodeJwtPayload = (token) => {
   try {
@@ -198,6 +211,42 @@ const verifyPaymentResult = async (req, res) => {
   }
 };
 
+// The follow-on endpoint reports "not indexed yet" as a plain INVALID_DATA response without any
+// field level details, so responses without a details array (and upstream gateway errors) are the
+// only ones that are worth retrying. Field level validation problems are reported straight away.
+const isActivationRetryable = (status, data) => {
+  if (status === 502 || status === 503 || status === 504) {
+    return true;
+  }
+
+  if (status !== 400 && status !== 404) {
+    return false;
+  }
+
+  return !Array.isArray(data?.details) || data.details.length === 0;
+};
+
+const createFollowOnSubscription = (transactionId) => {
+  const subscriptionData = {
+    clientReferenceInformation: {
+      code: `subscription_${Date.now()}`,
+    },
+    subscriptionInformation: {
+      planId: RECURRING_PLAN_ID,
+      name: "Daily 20 Test",
+      startDate: formatSubscriptionStartDate(),
+    },
+  };
+
+  const rawBody = JSON.stringify(subscriptionData);
+  const rbsResourcePath = `${subscriptionResourcePath}/follow-ons/${transactionId}`;
+
+  // Generate authentication headers
+  const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", rbsResourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
+
+  return axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
+};
+
 const activateRecurringBilling = async (req, res) => {
   try {
     const decoded = decodeJwtPayload(req.body?.result);
@@ -215,38 +264,49 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    // const startDateFormatted = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const deadline = Date.now() + RECURRING_ACTIVATION_TIMEOUT_MS;
+    let upstreamStatus = 500;
+    let upstreamData = null;
 
-    const subscriptionData = {
-      clientReferenceInformation: {
-        code: `subscription_${Date.now()}`,
-      },
-      subscriptionInformation: {
-        planId: RECURRING_PLAN_ID,
-        name: "Daily 20 Test",
-        startDate: `${new Date().toISOString()}`,
-      },
-    };
+    while (Date.now() <= deadline) {
+      try {
+        const response = await createFollowOnSubscription(transactionId);
 
-    const rawBody = JSON.stringify(subscriptionData);
-    const rbsResourcePath = `/rbs/v1/subscriptions/follow-ons/${transactionId}`;
+        return res.json({
+          success: true,
+          response: response?.data,
+        });
+      } catch (error) {
+        upstreamStatus = error.response?.status || 500;
+        upstreamData = error.response?.data ?? null;
 
-    // Generate authentication headers
-    const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", rbsResourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
+        console.error("Recurring billing error:", upstreamData || error.message);
 
-    const response = await axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
+        const shouldRetry = isActivationRetryable(upstreamStatus, upstreamData) && Date.now() + RECURRING_ACTIVATION_RETRY_DELAY_MS <= deadline;
 
-    return res.json({
-      success: true,
-      response: response?.data,
+        if (!shouldRetry) {
+          break;
+        }
+
+        await sleep(RECURRING_ACTIVATION_RETRY_DELAY_MS);
+      }
+    }
+
+    const retryable = isActivationRetryable(upstreamStatus, upstreamData);
+
+    return res.status(retryable ? 409 : upstreamStatus).json({
+      error: retryable
+        ? "The payment has not been indexed for recurring billing yet. Please try again shortly."
+        : upstreamData?.message || "Failed to process recurring billing",
+      retryable,
+      details: upstreamData,
     });
   } catch (error) {
-    console.error("Recurring billing error:", error.response?.data || error.message);
-    const upstreamError = error.response?.data;
+    console.error("Recurring billing error:", error.message);
 
-    return res.status(error.response?.status || 500).json({
-      error: upstreamError?.message || "Failed to process recurring billing",
-      details: error.response?.data ?? null,
+    return res.status(500).json({
+      error: "Failed to process recurring billing",
+      details: null,
     });
   }
 };
