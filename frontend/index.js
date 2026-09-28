@@ -6,12 +6,6 @@ const paymentPayload = {
   clientVersion: "1.0",
   country: "US",
   locale: "en_US",
-  completeMandate: {
-    type: "CAPTURE",
-  },
-  captureMandate: {
-    billingInformation: "NONE",
-  },
   data: {
     orderInformation: {
       amountDetails: {
