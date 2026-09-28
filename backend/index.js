@@ -3,7 +3,6 @@ const cors = require("cors");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 const { createHeaders } = require("cybersource-auth");
-// const jwt = require("jsonwebtoken");
 const axios = require("axios");
 
 const app = express();
@@ -34,11 +33,10 @@ const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
 const resourcePath = "/uc/v1/sessions";
 const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
 const FOLLOW_ON_MAX_ATTEMPTS = 3;
-const FOLLOW_ON_RETRY_DELAYS_MS = [1000, 2000];
+const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]; // Delays in milliseconds for retry attempts
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Format required by the Subscriptions API: YYYY-MM-DDThh:mm:ssZ
 const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
 
 const decodeJwtPayload = (token) => {
@@ -76,18 +74,7 @@ const createCheckoutSession = async (req, res) => {
 
     const url = `https://${normalizedHost}${resourcePath}`;
 
-    const rawPayload = req.body?.payload && typeof req.body.payload === "object" ? req.body.payload : req.body;
-    const payload = normalizeCheckoutPayload(rawPayload);
-
-    const validationErrors = validateCheckoutPayload(payload);
-
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: "Invalid checkout-session payload.",
-        validationErrors,
-      });
-    }
-
+    const payload = req.body;
     const rawBody = JSON.stringify(payload);
 
     const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", resourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
@@ -119,93 +106,6 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
-const validateCheckoutPayload = (payload) => {
-  const errors = [];
-
-  if (!Array.isArray(payload.targetOrigins) || payload.targetOrigins.length === 0) {
-    errors.push("targetOrigins must be a non-empty array.");
-  }
-
-  if (typeof payload.clientVersion !== "string" || payload.clientVersion.trim().length === 0) {
-    errors.push("clientVersion is required.");
-  }
-
-  if (typeof payload.country !== "string" || payload.country.trim().length === 0) {
-    errors.push("country is required.");
-  }
-
-  if (typeof payload.locale !== "string" || payload.locale.trim().length === 0) {
-    errors.push("locale is required.");
-  }
-
-  const orderInfo = payload.data?.orderInformation || payload.orderInformation;
-
-  if (typeof orderInfo !== "object" || orderInfo === null || typeof orderInfo.amountDetails !== "object" || orderInfo.amountDetails === null) {
-    errors.push("data.orderInformation.amountDetails is required.");
-    return errors;
-  }
-
-  const amountDetails = orderInfo.amountDetails;
-
-  if (typeof amountDetails.totalAmount !== "string" || amountDetails.totalAmount.trim().length === 0) {
-    errors.push("data.orderInformation.amountDetails.totalAmount is required.");
-  }
-
-  if (typeof amountDetails.currency !== "string" || amountDetails.currency.trim().length === 0) {
-    errors.push("data.orderInformation.amountDetails.currency is required.");
-  }
-
-  return errors;
-};
-
-const normalizeCheckoutPayload = (rawPayload) => {
-  const payload = rawPayload && typeof rawPayload === "object" ? { ...rawPayload } : {};
-
-  if (typeof payload.data !== "object" || payload.data === null) {
-    payload.data = {};
-  }
-
-  if (payload.orderInformation && !payload.data.orderInformation) {
-    payload.data.orderInformation = payload.orderInformation;
-  }
-
-  delete payload.orderInformation;
-  return payload;
-};
-
-const verifyPaymentResult = async (req, res) => {
-  try {
-    const { completeResponse } = req.body;
-
-    if (!completeResponse) {
-      return res.status(400).json({
-        error: "completeResponse JWT is required",
-      });
-    }
-
-    const decoded = decodeJwtPayload(completeResponse);
-
-    if (!decoded) {
-      return res.status(400).json({
-        error: "Unable to decode payment result JWT",
-      });
-    }
-
-    console.log("Decoded payment result:", decoded);
-
-    return res.status(200).json({
-      success: true,
-      decoded,
-    });
-  } catch (error) {
-    console.error("Payment result error:", error);
-
-    return res.status(500).json({
-      error: "Failed to process payment result",
-    });
-  }
-};
-
 const createFollowOnSubscription = (transactionId) => {
   const subscriptionData = {
     clientReferenceInformation: {
@@ -221,7 +121,6 @@ const createFollowOnSubscription = (transactionId) => {
   const rawBody = JSON.stringify(subscriptionData);
   const rbsResourcePath = `${subscriptionResourcePath}/follow-ons/${transactionId}`;
 
-  // Generate authentication headers
   const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", rbsResourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
 
   return axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
@@ -271,8 +170,7 @@ const activateRecurringBilling = async (req, res) => {
 
         const upstreamStatus = error.response?.status || 500;
         const upstreamData = error.response?.data ?? null;
-        const canRetry =
-          attempt < FOLLOW_ON_MAX_ATTEMPTS && isFollowOnRetryable(upstreamStatus, upstreamData);
+        const canRetry = attempt < FOLLOW_ON_MAX_ATTEMPTS && isFollowOnRetryable(upstreamStatus, upstreamData);
 
         console.error("Recurring billing error:", upstreamData || error.message);
 
@@ -307,8 +205,6 @@ const activateRecurringBilling = async (req, res) => {
 app.post("/activate-recurring-billing", activateRecurringBilling);
 
 app.post("/checkout-session", createCheckoutSession);
-
-app.post("/verify-payment", verifyPaymentResult);
 
 console.log(`Backend server started at ${new Date().toISOString()}`);
 
