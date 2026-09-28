@@ -29,17 +29,17 @@ const isActivationRetryable = (error) => {
 };
 
 const activateRecurringBilling = async (result) => {
-  let response;
+  let response = null;
   for (let attempt = 1; attempt <= ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
     try {
-      response = await axios
+      return (response = await axios
         .post(`${BACKEND_URL}/activate-recurring-billing`, {
           result,
+          response,
         })
         .then(() => {
-          console.log("Recurring billing activated successfully!", response);
           window.alert("Recurring billing activated successfully!" + response);
-        });
+        }));
     } catch (error) {
       const isLastAttempt = attempt === ACTIVATION_MAX_ATTEMPTS;
 
