@@ -7,24 +7,32 @@ const { createHeaders } = require("cybersource-auth");
 const axios = require("axios");
 
 const app = express();
-const allowedOrigins = ["https://recurring-billing-frontend-9a0enftx4-charleskwames-projects.vercel.app", process.env.FRONTEND_ORIGIN].filter(
-  Boolean,
-);
+const allowedOrigins = [
+  "https://recurring-billing-frontend.vercel.app",
+  "https://recurring-billing-frontend-9a0enftx4-charleskwames-projects.vercel.app",
+  ...(process.env.FRONTEND_ORIGINS || "").split(","),
+  process.env.FRONTEND_ORIGIN,
+]
+  .map((origin) => origin?.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
+const isAllowedOrigin = (origin) => {
+  if (!origin) {
+    return true;
+  }
 
-      callback(new Error("Origin is not allowed by CORS."));
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
+  return allowedOrigins.includes(origin) || /^https:\/\/recurring-billing-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/.test(origin);
+};
+
+const corsOptions = {
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json());
 
