@@ -216,6 +216,7 @@ const verifyPaymentResult = async (req, res) => {
 // field level details, so responses without a details array (and upstream gateway errors) are the
 
 // only ones that are worth retrying. Field level validation problems are reported straight away.
+
 const isActivationRetryable = (status, data) => {
   if (status === 502 || status === 503 || status === 504) {
     return true;
