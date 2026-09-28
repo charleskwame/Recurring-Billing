@@ -1,0 +1,454 @@
+RECURRING BILLING DEMO - END-TO-END CODE FLOW
+===============================================
+
+This document describes how the implementation works across:
+
+- frontend/index.html
+- frontend/index.js
+- frontend/index.css
+- backend/index.js
+- backend/.env
+
+The system uses a browser frontend, an Express backend, and CyberSource Unified Checkout plus Recurring Billing APIs.
+
+
+1. APPLICATION STARTUP
+----------------------
+
+Frontend:
+
+1. The browser opens frontend/index.html.
+2. The page loads frontend/index.css for the plan page and checkout styling.
+3. Axios is loaded from the jsDelivr CDN.
+4. frontend/index.js is loaded as a module.
+5. The script finds the plan buttons, checkout sidebar, status message, success dialog, and result element by their IDs/classes.
+6. Each button in the pricing section has a data-plan-key value:
+
+   - daily
+   - weekly
+   - monthly
+
+Backend:
+
+1. backend/index.js loads environment variables from backend/.env.
+2. Express is created.
+3. CORS is configured to allow the deployed frontend origin and FRONTEND_ORIGIN, if configured.
+4. JSON request parsing is enabled with express.json().
+5. CyberSource credentials and endpoint configuration are read from environment variables.
+6. The PLANS object maps each frontend plan key to a CyberSource recurring plan.
+7. In non-production mode, the server listens on PORT or port 3000.
+8. In production, the file exports the Express app so a platform such as Vercel can run it as a serverless application.
+
+
+2. USER SELECTS A PLAN
+----------------------
+
+The user clicks one of the buttons in frontend/index.html. The following event listener in frontend/index.js handles the click:
+
+  planButtons.forEach((button) => button.addEventListener("click", getSessionContext));
+
+The getSessionContext function then:
+
+1. Reads the clicked button from event.currentTarget.
+2. Reads button.dataset.planKey.
+3. Disables the button to prevent duplicate requests.
+4. Changes the button text to "Loading checkout...".
+5. Updates the live status text to "Preparing secure checkout...".
+6. Attempts to open the checkout sidebar.
+7. Prevents the default button event behavior.
+
+The frontend does not trust the displayed price as the source of truth. It sends the selected plan key to the backend.
+
+
+3. FRONTEND BUILDS THE CHECKOUT REQUEST
+----------------------------------------
+
+paymentPayload(planKey) creates the request body sent to the backend:
+
+  {
+    planKey,
+    targetOrigins: [checkoutOrigin],
+    clientVersion: "1.0",
+    country: "US",
+    locale: "en_US",
+    data: {
+      orderInformation: {
+        amountDetails: {
+          totalAmount: "0.00",
+          currency: "USD"
+        }
+      }
+    }
+  }
+
+checkoutOrigin is normally window.location.origin. If the page is opened directly from the file system and the origin is "null", the deployed frontend origin is used instead.
+
+The browser sends this payload with Axios:
+
+  POST https://recurring-billing-backend.vercel.app/checkout-session
+
+
+4. BACKEND VALIDATES THE CHECKOUT REQUEST
+------------------------------------------
+
+The /checkout-session route calls createCheckoutSession in backend/index.js.
+
+The backend first checks that these environment variables are available:
+
+- CYBERSOURCE_HOST
+- CYBERSOURCE_MERCHANT_ID
+- CYBERSOURCE_API_KEY_ID
+- CYBERSOURCE_API_SECRET_KEY
+
+If any are missing, it returns HTTP 500 with an environment configuration error.
+
+Next, the backend:
+
+1. Reads req.body.planKey.
+2. Looks up the key in PLANS using getPlan(planKey).
+3. Rejects unknown plans or plans without a configured CyberSource plan ID with HTTP 400.
+4. Removes planKey from the payload before forwarding the request to CyberSource.
+5. Rebuilds data.orderInformation.amountDetails.
+6. Replaces the frontend amount with the trusted amount from the server-side PLANS configuration.
+7. Keeps the currency as USD.
+8. Serializes the resulting payload with JSON.stringify.
+
+The server-side plan amounts are:
+
+- daily: 20.00 USD
+- weekly: 50.00 USD
+- monthly: 100.00 USD
+
+The daily plan ID comes from CYBERSOURCE_RECURRING_PLAN_ID. The weekly and monthly IDs are currently hard-coded in PLANS.
+
+
+5. BACKEND CREATES A CYBERSOURCE CAPTURE CONTEXT
+------------------------------------------------
+
+The backend builds the CyberSource Unified Checkout URL:
+
+  https://<CYBERSOURCE_HOST>/uc/v1/sessions
+
+It then calls createHeaders from cybersource-auth with:
+
+- merchant ID
+- normalized CyberSource host
+- HTTP method POST
+- resource path /uc/v1/sessions
+- exact serialized request body
+- API key ID
+- shared secret
+
+These headers authenticate the server-to-server request.
+
+The backend sends the checkout payload to CyberSource with Axios and a 10-second timeout.
+
+If CyberSource succeeds and returns a Capture Context token, the backend returns that token directly to the browser as the /checkout-session response.
+
+If CyberSource fails:
+
+- A CyberSource HTTP error is returned using the upstream status code.
+- The response includes a general error message and the upstream details.
+- A local or unexpected error becomes HTTP 500.
+- If CyberSource returns HTTP 200 without a Capture Context token, the backend returns HTTP 500 because the response is unusable.
+
+
+6. FRONTEND DECODES THE CAPTURE CONTEXT
+----------------------------------------
+
+After /checkout-session succeeds, getSessionContext receives the Capture Context token in response.data.
+
+The frontend then:
+
+1. Verifies that a token exists.
+2. Calls decodeJwtPayload(captureContext).
+3. Splits the token into JWT sections.
+4. Base64-decodes the middle section.
+5. Parses that section as JSON.
+6. Reads decoded.ctx[0].data.
+7. Extracts:
+
+   - clientLibrary
+   - clientLibraryIntegrity
+
+The Capture Context contains the CyberSource client library URL and its optional integrity value. The frontend needs these values to load the correct CyberSource browser SDK.
+
+If the token cannot be decoded, or ctx[0].data is missing, the flow stops with an error message.
+
+This decoding is used to read SDK metadata. The token is still passed unchanged to Unified Checkout later.
+
+
+7. FRONTEND LOADS THE CYBERSOURCE SDK
+--------------------------------------
+
+loadCyberSourceSdk(clientLibrary, integrity) dynamically creates a script element.
+
+1. It rejects the request if clientLibrary is missing.
+2. If window.Accept or window.VAS is already available, it resolves immediately.
+3. Otherwise, it adds a script pointing to clientLibrary.
+4. If an integrity value exists, it sets the script integrity and crossOrigin attributes.
+5. It resolves when the script loads.
+6. It rejects if the script fails to load.
+
+The current implementation proceeds only when this condition is true:
+
+  window.VAS && typeof window.VAS.UnifiedCheckout === "function"
+
+The older window.Accept path is detected by loadCyberSourceSdk but is not used for payment in the current flow.
+
+
+8. FRONTEND MOUNTS UNIFIED CHECKOUT
+-----------------------------------
+
+startWithVAS(captureContext, planKey) handles the CyberSource payment UI.
+
+1. It calls window.VAS.UnifiedCheckout(captureContext).
+2. It creates a checkout instance with autoProcessing: true.
+3. It mounts the payment selection UI into:
+
+   #buttonPaymentListContainer
+
+4. It mounts the payment screen into:
+
+   #embeddedPaymentContainer
+
+5. It waits for checkout.mount() to return a payment result.
+
+The two mount targets are empty div elements in the checkout sidebar in frontend/index.html. CyberSource fills those containers with its payment controls.
+
+If the returned result is empty, the frontend treats that as a failed payment and throws an error.
+
+If Unified Checkout reports a UnifiedCheckoutError, the frontend logs its reason, message, and code for debugging.
+
+
+9. FRONTEND SENDS THE PAYMENT RESULT TO THE BACKEND
+---------------------------------------------------
+
+When checkout.mount() returns a result, startWithVAS calls:
+
+  activateRecurringBilling(result, planKey)
+
+That sends:
+
+  POST https://recurring-billing-backend.vercel.app/activate-recurring-billing
+
+with this JSON body:
+
+  {
+    result: <CyberSource payment result token>,
+    planKey: <daily | weekly | monthly>
+  }
+
+The payment result is not used by the browser to create the subscription. The backend receives it and performs the authenticated recurring billing request.
+
+
+10. BACKEND DECODES THE PAYMENT RESULT
+---------------------------------------
+
+The /activate-recurring-billing route calls activateRecurringBilling.
+
+The backend:
+
+1. Reads req.body.result.
+2. Decodes it as a JWT using decodeJwtPayload.
+3. Reads decoded.id as the CyberSource transaction ID.
+4. Looks up req.body.planKey in PLANS.
+5. Returns HTTP 400 if the transaction ID is missing.
+6. Returns HTTP 400 if the plan is invalid or has no configured plan ID.
+
+The transaction ID is required because CyberSource uses it to associate the follow-on recurring subscription with the completed payment transaction.
+
+
+11. BACKEND CREATES THE FOLLOW-ON SUBSCRIPTION
+-----------------------------------------------
+
+createFollowOnSubscription(transactionId, plan) builds this request body:
+
+  {
+    clientReferenceInformation: {
+      code: "subscription_<transactionId>"
+    },
+    subscriptionInformation: {
+      planId: plan.id,
+      name: plan.name,
+      startDate: <current UTC timestamp>
+    }
+  }
+
+formatSubscriptionStartDate produces an ISO timestamp without milliseconds, for example:
+
+  2026-09-28T12:34:56Z
+
+The backend sends the request to:
+
+  https://<CYBERSOURCE_HOST><SUBSCRIPTION_RESOURCE_PATH>/follow-ons/<transactionId>
+
+SUBSCRIPTION_RESOURCE_PATH defaults to:
+
+  /rbs/v1/subscriptions
+
+The final default path is therefore:
+
+  /rbs/v1/subscriptions/follow-ons/<transactionId>
+
+The request is authenticated with createHeaders using the exact recurring-billing resource path and serialized body.
+
+
+12. RETRIES FOR TRANSIENT RECURRING BILLING ERRORS
+---------------------------------------------------
+
+The follow-on request can be attempted up to four times.
+
+Retry delays are:
+
+- after attempt 1: 300 ms
+- after attempt 2: 500 ms
+- after attempt 3: 1000 ms
+
+The backend retries when:
+
+- the upstream status is 502, 503, or 504; or
+- the upstream status is 400 or 404 and the response does not contain a non-empty details array.
+
+It does not retry other failures, or 400/404 responses that contain details. After the final failed attempt, the backend returns the last upstream status, message, and details.
+
+When the request succeeds, the backend returns:
+
+  {
+    success: true,
+    response: <CyberSource recurring subscription response>
+  }
+
+
+13. FRONTEND SHOWS THE SUCCESS RESULT
+--------------------------------------
+
+After activateRecurringBilling succeeds, startWithVAS:
+
+1. Logs the backend response.
+2. Sets the status message to "Subscription created successfully.".
+3. Serializes response.data into the subscription result <pre> element.
+4. Opens the native success dialog with successDialog.showModal().
+
+The dialog displays the returned subscription response. The Close button calls successDialog.close().
+
+After startWithVAS returns, getSessionContext also:
+
+1. Re-enables the original plan button.
+2. Restores its "Choose <plan>" label.
+3. Sets the status message to "Payment complete. Your subscription is active.".
+
+Finally, startWithVAS destroys the CyberSource checkout and client objects in its finally block, preventing the embedded checkout instance from remaining active after completion or failure.
+
+
+14. ERROR HANDLING PATH
+-----------------------
+
+Errors can occur in the frontend, backend, CyberSource Capture Context request, SDK loading, payment mounting, or subscription creation.
+
+Frontend behavior:
+
+1. getSessionContext catches the error.
+2. It logs the error and any backend response data.
+3. It sets statusMessage to the backend error when available, otherwise to:
+
+   "Unable to initialize payment. Please try again."
+
+4. It re-enables the button.
+5. It restores the button label.
+6. It removes the checkout sidebar open state.
+
+Backend behavior:
+
+- Validation errors return HTTP 400.
+- Missing configuration returns HTTP 500.
+- CyberSource errors preserve the upstream status when possible.
+- Error responses include an error message and, where available, details from CyberSource.
+
+The cleanup in startWithVAS runs even when payment or subscription activation fails.
+
+
+15. UI AND CHECKOUT STATE
+-------------------------
+
+The HTML contains three main UI areas:
+
+1. Pricing cards with plan buttons.
+2. The checkout sidebar containing the two CyberSource mount points.
+3. The success dialog containing the subscription response.
+
+The JavaScript tries to open the sidebar by adding the class is-open to #checkoutSidebar and closes it by removing that class.
+
+There is a current CSS/JavaScript naming mismatch worth knowing about:
+
+- JavaScript adds #checkoutSidebar.is-open.
+- The inline CSS in frontend/index.html reveals the sidebar with the selector:
+
+  #unified-checkout-container.is-initializing + #checkoutSidebar
+
+- The current HTML does not contain an element with id unified-checkout-container.
+- frontend/index.css also does not define the .checkout-sidebar.is-open state.
+
+Therefore, the payment workflow still runs in JavaScript, but the sidebar may not become visible as intended. The visual open-state selector should be aligned with the class that JavaScript actually applies, for example by styling #checkoutSidebar.is-open with transform: translateX(0).
+
+This is a UI presentation issue, separate from the backend payment and recurring subscription API flow.
+
+
+16. CONFIGURATION REQUIRED
+--------------------------
+
+backend/.env must provide the CyberSource settings used by backend/index.js:
+
+- CYBERSOURCE_HOST
+- CYBERSOURCE_MERCHANT_ID
+- CYBERSOURCE_API_KEY_ID
+- CYBERSOURCE_API_SECRET_KEY
+- CYBERSOURCE_RECURRING_PLAN_ID
+- FRONTEND_ORIGIN, if an additional frontend origin is needed
+- SUBSCRIPTION_RESOURCE_PATH, optional
+- PORT, optional for local development
+- NODE_ENV, used to decide whether to start a local listener
+
+The API secret must stay on the backend. It must not be placed in frontend/index.js or exposed to the browser.
+
+
+17. COMPLETE REQUEST SEQUENCE
+-----------------------------
+
+The complete successful sequence is:
+
+1. User clicks Choose daily, Choose weekly, or Choose monthly.
+2. Browser extracts the plan key.
+3. Browser sends POST /checkout-session.
+4. Backend validates the plan and replaces the amount with its trusted server-side value.
+5. Backend signs and sends POST /uc/v1/sessions to CyberSource.
+6. CyberSource returns a Capture Context token.
+7. Backend returns the token to the browser.
+8. Browser decodes the token to find the CyberSource client library.
+9. Browser loads the CyberSource SDK.
+10. Browser creates UnifiedCheckout with the Capture Context.
+11. CyberSource renders payment controls into the two checkout containers.
+12. User completes payment.
+13. Unified Checkout returns a payment result containing a transaction ID.
+14. Browser sends the result and plan key to POST /activate-recurring-billing.
+15. Backend decodes the result and extracts the transaction ID.
+16. Backend creates and signs the follow-on subscription request.
+17. CyberSource creates the recurring subscription according to the selected plan.
+18. Backend returns the subscription response.
+19. Browser displays the success dialog and returned subscription data.
+20. Browser destroys the checkout/client instances and restores the plan button.
+
+
+18. LOCAL DEVELOPMENT COMMANDS
+------------------------------
+
+From the backend directory:
+
+  pnpm install
+  pnpm start
+
+For automatic restart during development:
+
+  pnpm dev
+
+The local backend listens on http://localhost:3000 unless PORT is configured. The frontend is static and can be served by a static web server or deployed separately. Its origin must be allowed by the backend CORS configuration and included in the Capture Context targetOrigins value.

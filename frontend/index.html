@@ -159,6 +159,68 @@
           padding: 22px;
         }
       }
+
+      @media (max-width: 768px) {
+        body {
+          align-items: stretch;
+          justify-content: flex-start;
+          min-height: 100svh;
+          padding: 0;
+        }
+
+        .container {
+          width: 100%;
+          max-width: none;
+          padding: 48px 18px 36px;
+        }
+
+        .header h1 {
+          font-size: clamp(2.5rem, 10vw, 4rem);
+        }
+
+        .pricing-cards {
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .card {
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          min-height: 0;
+          flex: 0 1 auto;
+        }
+
+        #checkoutSidebar {
+          width: 100%;
+          max-width: none;
+          height: 100svh;
+          padding: max(28px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+        }
+
+        .checkout-sidebar h2 {
+          padding-right: 42px;
+          font-size: clamp(1.75rem, 7vw, 2rem);
+        }
+      }
+
+      @media (max-width: 380px) {
+        .container {
+          padding: 36px 14px 28px;
+        }
+
+        #unified-checkout-container {
+          padding: 18px;
+        }
+
+        .card {
+          padding: 22px 20px;
+        }
+
+        .card-header {
+          flex-wrap: wrap;
+        }
+      }
     </style>
   </head>
   <body>
