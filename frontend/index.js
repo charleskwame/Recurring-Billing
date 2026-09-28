@@ -102,7 +102,7 @@ const startWithVAS = async (captureContext) => {
     console.log(result);
 
     if (result) {
-      const response = await axios.post("https://unified-checkout-backend.vercel.app/activate-recurring-billing", {
+      const response = await axios.post("https://recurring-billing-backend.vercel.app/activate-recurring-billing", {
         result,
       });
 
@@ -150,7 +150,7 @@ const getSessionContext = async (event) => {
   event.preventDefault();
 
   try {
-    const response = await axios.post("https://unified-checkout-backend.vercel.app/checkout-session", paymentPayload);
+    const response = await axios.post("https://recurring-billing-backend.vercel.app/checkout-session", paymentPayload);
 
     const captureContext = response.data;
 
