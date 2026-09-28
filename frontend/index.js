@@ -37,8 +37,8 @@ const activateRecurringBilling = async (result) => {
           result,
         })
         .then(() => {
-          console.log("Recurring billing activated successfully!", response.data);
-          window.alert("Recurring billing activated successfully!" + response.data);
+          console.log("Recurring billing activated successfully!", response);
+          window.alert("Recurring billing activated successfully!" + response);
         });
     } catch (error) {
       const isLastAttempt = attempt === ACTIVATION_MAX_ATTEMPTS;
