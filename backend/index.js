@@ -266,43 +266,43 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    // const deadline = Date.now() + RECURRING_ACTIVATION_TIMEOUT_MS;
-    // let upstreamStatus = 500;
-    // let upstreamData = null;
+    const deadline = Date.now() + RECURRING_ACTIVATION_TIMEOUT_MS;
+    let upstreamStatus = 500;
+    let upstreamData = null;
 
-    // while (Date.now() <= deadline) {
-    //   try {
-    const response = await createFollowOnSubscription(transactionId);
+    while (Date.now() <= deadline) {
+      try {
+        const response = await createFollowOnSubscription(transactionId);
 
-    return res.json({
-      success: true,
-      response: response?.data,
+        return res.json({
+          success: true,
+          response: response?.data,
+        });
+      } catch (error) {
+        upstreamStatus = error.response?.status || 500;
+        upstreamData = error.response?.data ?? null;
+
+        console.error("Recurring billing error:", upstreamData || error.message);
+
+        const shouldRetry = isActivationRetryable(upstreamStatus, upstreamData) && Date.now() + RECURRING_ACTIVATION_RETRY_DELAY_MS <= deadline;
+
+        if (!shouldRetry) {
+          break;
+        }
+
+        await sleep(RECURRING_ACTIVATION_RETRY_DELAY_MS);
+      }
+    }
+
+    const retryable = isActivationRetryable(upstreamStatus, upstreamData);
+
+    return res.status(retryable ? 409 : upstreamStatus).json({
+      error: retryable
+        ? "The payment has not been indexed for recurring billing yet. Please try again shortly."
+        : upstreamData?.message || "Failed to process recurring billing",
+      retryable,
+      details: upstreamData,
     });
-    //   } catch (error) {
-    //     upstreamStatus = error.response?.status || 500;
-    //     upstreamData = error.response?.data ?? null;
-
-    //     console.error("Recurring billing error:", upstreamData || error.message);
-
-    //     const shouldRetry = isActivationRetryable(upstreamStatus, upstreamData) && Date.now() + RECURRING_ACTIVATION_RETRY_DELAY_MS <= deadline;
-
-    //     if (!shouldRetry) {
-    //       break;
-    //     }
-
-    //     await sleep(RECURRING_ACTIVATION_RETRY_DELAY_MS);
-    //   }
-    // }
-
-    // const retryable = isActivationRetryable(upstreamStatus, upstreamData);
-
-    // return res.status(retryable ? 409 : upstreamStatus).json({
-    //   error: retryable
-    //     ? "The payment has not been indexed for recurring billing yet. Please try again shortly."
-    //     : upstreamData?.message || "Failed to process recurring billing",
-    //   retryable,
-    //   details: upstreamData,
-    // });
   } catch (error) {
     console.error("Recurring billing error:", error.message);
 

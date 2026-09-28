@@ -28,41 +28,27 @@ const isActivationRetryable = (error) => {
   return status === 502 || status === 503 || status === 504;
 };
 
-// const activateRecurringBilling = async (result) => {
-//   for (let attempt = 1; attempt <= ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
-//     try {
-//       return await axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
-//         result,
-//       });
-//     } catch (error) {
-//       const isLastAttempt = attempt === ACTIVATION_MAX_ATTEMPTS;
-
-//       if (!isActivationRetryable(error) || isLastAttempt) {
-//         throw error;
-//       }
-
-//       console.warn(
-//         `Recurring billing is not ready yet (attempt ${attempt}/${ACTIVATION_MAX_ATTEMPTS}). Retrying in ${ACTIVATION_RETRY_DELAY_MS}ms.`,
-//         error?.response?.data,
-//       );
-//       proceedToPaymentButton.innerHTML = `Finalizing Subscription, Please Wait... (${attempt}/${ACTIVATION_MAX_ATTEMPTS})`;
-//       await sleep(ACTIVATION_RETRY_DELAY_MS);
-//     }
-//   }
-
-//   throw new Error("Recurring billing activation failed.");
-// };
-
 const activateRecurringBilling = async (result) => {
-  try {
-    return await axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
-      result,
-    });
-  } catch (error) {
-    console.log(error);
+  for (let attempt = 1; attempt <= ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
+        result,
+      });
+    } catch (error) {
+      const isLastAttempt = attempt === ACTIVATION_MAX_ATTEMPTS;
+
+      if (!isActivationRetryable(error) || isLastAttempt) {
+        throw error;
+      }
+
+      console.warn(
+        `Recurring billing is not ready yet (attempt ${attempt}/${ACTIVATION_MAX_ATTEMPTS}). Retrying in ${ACTIVATION_RETRY_DELAY_MS}ms.`,
+        error?.response?.data,
+      );
+      proceedToPaymentButton.innerHTML = `Finalizing Subscription, Please Wait... (${attempt}/${ACTIVATION_MAX_ATTEMPTS})`;
+      await sleep(ACTIVATION_RETRY_DELAY_MS);
+    }
   }
-  // for (let attempt = 1; attempt <= ACTIVATION_MAX_ATTEMPTS; attempt += 1) {
-  // }
 
   throw new Error("Recurring billing activation failed.");
 };
