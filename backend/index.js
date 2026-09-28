@@ -33,6 +33,10 @@ const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
 const resourcePath = "/uc/v1/sessions";
 const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
+const FOLLOW_ON_MAX_ATTEMPTS = 3;
+const FOLLOW_ON_RETRY_DELAYS_MS = [1000, 2000];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Format required by the Subscriptions API: YYYY-MM-DDThh:mm:ssZ
 const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -205,7 +209,7 @@ const verifyPaymentResult = async (req, res) => {
 const createFollowOnSubscription = (transactionId) => {
   const subscriptionData = {
     clientReferenceInformation: {
-      code: `subscription_${Date.now()}`,
+      code: `subscription_${transactionId}`,
     },
     subscriptionInformation: {
       planId: RECURRING_PLAN_ID,
@@ -221,6 +225,18 @@ const createFollowOnSubscription = (transactionId) => {
   const headers = createHeaders(MERCHANT_ID, normalizedHost, "post", rbsResourcePath, rawBody, API_KEY_ID, SHARED_SECRET);
 
   return axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
+};
+
+const isFollowOnRetryable = (status, data) => {
+  if (status === 502 || status === 503 || status === 504) {
+    return true;
+  }
+
+  if (status !== 400 && status !== 404) {
+    return false;
+  }
+
+  return !Array.isArray(data?.details) || data.details.length === 0;
 };
 
 const activateRecurringBilling = async (req, res) => {
@@ -240,11 +256,40 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    const response = await createFollowOnSubscription(transactionId);
+    let lastError;
 
-    return res.json({
-      success: true,
-      response: response?.data,
+    for (let attempt = 1; attempt <= FOLLOW_ON_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const response = await createFollowOnSubscription(transactionId);
+
+        return res.json({
+          success: true,
+          response: response?.data,
+        });
+      } catch (error) {
+        lastError = error;
+
+        const upstreamStatus = error.response?.status || 500;
+        const upstreamData = error.response?.data ?? null;
+        const canRetry =
+          attempt < FOLLOW_ON_MAX_ATTEMPTS && isFollowOnRetryable(upstreamStatus, upstreamData);
+
+        console.error("Recurring billing error:", upstreamData || error.message);
+
+        if (!canRetry) {
+          break;
+        }
+
+        await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt - 1]);
+      }
+    }
+
+    const upstreamStatus = lastError.response?.status || 500;
+    const upstreamData = lastError.response?.data ?? null;
+
+    return res.status(upstreamStatus).json({
+      error: upstreamData?.message || "Failed to process recurring billing",
+      details: upstreamData,
     });
   } catch (error) {
     const upstreamStatus = error.response?.status || 500;
