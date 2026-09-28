@@ -32,8 +32,8 @@ const SHARED_SECRET = process.env.CYBERSOURCE_API_SECRET_KEY;
 const RECURRING_PLAN_ID = process.env.CYBERSOURCE_RECURRING_PLAN_ID;
 const resourcePath = "/uc/v1/sessions";
 const subscriptionResourcePath = process.env.SUBSCRIPTION_RESOURCE_PATH || "/rbs/v1/subscriptions";
-const FOLLOW_ON_MAX_ATTEMPTS = 3;
 const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]; // Delays in milliseconds for retry attempts
+const FOLLOW_ON_MAX_ATTEMPTS = FOLLOW_ON_RETRY_DELAYS_MS.length + 1;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
