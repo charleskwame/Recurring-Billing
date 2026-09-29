@@ -52,7 +52,7 @@ const PLANS = {
   },
 };
 
-const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000]; // Delays in milliseconds for retry attempts
+const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]; // Delays in milliseconds for retry attempts
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
