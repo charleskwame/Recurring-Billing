@@ -54,6 +54,249 @@
         </article>
       </section>
 
+      <section class="implementation-guide" aria-labelledby="guideTitle">
+        <div class="guide-heading">
+          <p class="eyebrow">How the demo works</p>
+          <h2 id="guideTitle">From plan to recurring subscription</h2>
+          <p>Follow the complete path from the plan button to the recurring subscription response.</p>
+        </div>
+        <div class="guide-reference" aria-label="Integration reference">
+          <div class="reference-block">
+            <h3>Important URLs</h3>
+            <dl class="reference-list">
+              <div>
+                <dt>Frontend to backend</dt>
+                <dd><code>https://recurring-billing-backend.vercel.app</code></dd>
+              </div>
+              <div>
+                <dt>Capture Context</dt>
+                <dd><code>POST https://&lt;CYBERSOURCE_HOST&gt;/uc/v1/sessions</code></dd>
+              </div>
+              <div>
+                <dt>Create subscription</dt>
+                <dd><code>POST https://&lt;CYBERSOURCE_HOST&gt;/rbs/v1/subscriptions/follow-ons/&lt;transactionId&gt;</code></dd>
+              </div>
+              <div>
+                <dt>Unified Checkout docs</dt>
+                <dd>
+                  <a
+                    href="https://developer.cybersource.com/docs/cybs/en-us/unified-checkout/developer/all/rest/unified-checkout.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    ><code>https://developer.cybersource.com/docs/cybs/en-us/unified-checkout/...</code></a
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>Recurring Billing docs</dt>
+                <dd>
+                  <a
+                    href="https://developer.cybersource.com/docs/cybs/en-us/recurring-billing/developer/all/rest/recurring-billing.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    ><code>https://developer.cybersource.com/docs/cybs/en-us/recurring-billing/...</code></a
+                  >
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="reference-block">
+            <h3>Frontend routes and payloads</h3>
+            <pre><code>POST /checkout-session
+  {
+    "planKey": "weekly",
+    "targetOrigins": ["https://recurring-billing-frontend.vercel.app"],
+    "clientVersion": "1.0",
+    "country": "US",
+    "locale": "en_US",
+    "data": { "orderInformation": { "amountDetails": { "totalAmount": "0.00", "currency": "USD" } } }
+  }
+
+  POST /activate-recurring-billing
+  { "result": "&lt;payment-result-jwt&gt;", "planKey": "weekly" }</code></pre>
+          </div>
+
+          <div class="reference-block">
+            <h3>Backend provider payloads</h3>
+            <pre><code>// Signed Capture Context request
+  {
+    "targetOrigins": ["&lt;frontend-origin&gt;"],
+    "clientVersion": "1.0",
+    "country": "US",
+    "locale": "en_US",
+    "data": { "orderInformation": { "amountDetails": { "totalAmount": "50.00", "currency": "USD" } } }
+  }
+
+  // Signed follow-on subscription request
+  {
+    "clientReferenceInformation": { "code": "subscription_&lt;transactionId&gt;" },
+    "subscriptionInformation": {
+      "planId": "&lt;recurring-plan-id&gt;",
+      "name": "Weekly 50 Test",
+      "startDate": "2026-09-29T12:00:00Z"
+    }
+  }</code></pre>
+          </div>
+
+          <div class="reference-block">
+            <h3>Key responses and signing</h3>
+            <pre><code>// /checkout-session response
+  "&lt;capture-context-jwt&gt;"
+
+  // /activate-recurring-billing response
+  {
+    "success": true,
+    "response": "&lt;CyberSource-subscription-response&gt;"
+  }
+
+  // Every CyberSource request is signed server-side
+  createHeaders(merchantId, host, method, resourcePath,
+    rawBody, apiKeyId, sharedSecret)</code></pre>
+          </div>
+        </div>
+
+        <ol class="guide-steps">
+          <li class="guide-step">
+            <span class="step-number">01</span>
+            <div>
+              <h3>Choose a plan</h3>
+              <p>The plan button sends its <code>data-plan-key</code> to the backend.</p>
+              <pre><code>button.dataset.planKey
+axios.post("/checkout-session", paymentPayload(planKey))</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">02</span>
+            <div>
+              <h3>Create the checkout session</h3>
+              <p>The backend signs a request to CyberSource and returns a Capture Context token.</p>
+              <pre><code>await axios.post(url, checkoutPayload, { timeout: 10000 })</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">03</span>
+            <div>
+              <h3>Mount Unified Checkout</h3>
+              <p>The frontend loads the CyberSource SDK, mounts the payment UI, and waits for the payment result.</p>
+              <pre><code>const client = await window.VAS.UnifiedCheckout(captureContext)
+const result = await checkout.mount({...})</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">04</span>
+            <div>
+              <h3>Start recurring billing</h3>
+              <p>The backend reads the transaction ID and creates the follow-on subscription, retrying temporary failures.</p>
+              <pre><code>await axios.post("/activate-recurring-billing", { result, planKey })
+POST /rbs/v1/subscriptions/follow-ons/{transactionId}</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">05</span>
+            <div>
+              <h3>Wire the plan buttons</h3>
+              <p>The page loads Axios and the frontend module, then registers <code>getSessionContext</code> for every plan button.</p>
+              <pre><code>planButtons.forEach((button) =&gt;
+  button.addEventListener("click", getSessionContext))</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">06</span>
+            <div>
+              <h3>Validate the plan on the backend</h3>
+              <p>The backend rejects missing CyberSource configuration or an unknown plan before calling the payment provider.</p>
+              <pre><code>const plan = getPlan(req.body?.planKey)
+if (!plan) return res.status(400).json({ error: "A valid subscription plan is required." })</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">07</span>
+            <div>
+              <h3>Apply the trusted plan amount</h3>
+              <p>The backend removes <code>planKey</code> and replaces the client amount with the server-side plan amount and USD currency.</p>
+              <pre><code>checkoutPayload.data.orderInformation.amountDetails = {
+  totalAmount: plan.amount,
+  currency: "USD"
+}</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">08</span>
+            <div>
+              <h3>Create the Capture Context</h3>
+              <p>The backend signs the request with CyberSource credentials. This provider call has a 10-second Axios timeout.</p>
+              <pre><code>const headers = createHeaders(...)
+const response = await axios.post(url, checkoutPayload, {
+  headers,
+  timeout: 10000
+})</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">09</span>
+            <div>
+              <h3>Read the Capture Context</h3>
+              <p>
+                The frontend decodes the token to find the CyberSource client library URL and integrity value, while passing the original token
+                unchanged to checkout.
+              </p>
+              <pre><code>const decoded = decodeJwtPayload(captureContext)
+const contextData = decoded?.ctx?.[0]?.data
+const { clientLibrary, clientLibraryIntegrity } = contextData</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">10</span>
+            <div>
+              <h3>Load and mount Unified Checkout</h3>
+              <p>The browser loads the provider SDK, renders payment selection and the payment screen, and waits for the completed payment result.</p>
+              <pre><code>await loadCyberSourceSdk(clientLibrary, clientLibraryIntegrity)
+const client = await window.VAS.UnifiedCheckout(captureContext)
+const checkout = await client.createCheckout({ autoProcessing: true })
+const result = await checkout.mount({
+  paymentSelection: "#buttonPaymentListContainer",
+  paymentScreen: "#embeddedPaymentContainer"
+})</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">11</span>
+            <div>
+              <h3>Extract the transaction ID</h3>
+              <p>The backend decodes the payment-result JWT, reads its transaction ID, and looks up the same validated recurring plan.</p>
+              <pre><code>const decoded = decodeJwtPayload(req.body?.result)
+const transactionId = decoded?.id
+const plan = getPlan(req.body?.planKey)</code></pre>
+            </div>
+          </li>
+
+          <li class="guide-step">
+            <span class="step-number">12</span>
+            <div>
+              <h3>Create, retry, and finish</h3>
+              <p>
+                The backend links the subscription to the completed transaction, retries temporary 502/503/504 failures up to four total attempts, and
+                returns the result. The frontend displays success or the error, then destroys the checkout objects.
+              </p>
+              <pre><code>POST /rbs/v1/subscriptions/follow-ons/{transactionId}
+FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]
+checkout.destroy(); client.destroy();</code></pre>
+            </div>
+          </li>
+        </ol>
+      </section>
+
       <p class="status-message" id="statusMessage" role="status" aria-live="polite"></p>
     </main>
 
