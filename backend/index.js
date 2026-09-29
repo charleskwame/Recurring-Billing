@@ -54,8 +54,6 @@ const PLANS = {
 
 const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000, 1500, 2000, 2500, 3000]; // Delays in milliseconds for retry attempts
 
-const FOLLOW_ON_MAX_ATTEMPTS = FOLLOW_ON_RETRY_DELAYS_MS.length + 1;
-
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const formatSubscriptionStartDate = (date = new Date()) => date.toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -154,6 +152,7 @@ const createCheckoutSession = async (req, res) => {
   }
 };
 
+//Actual Function That Creates the Subscription
 const createFollowOnSubscription = (transactionId, plan) => {
   const subscriptionData = {
     clientReferenceInformation: {
@@ -174,18 +173,42 @@ const createFollowOnSubscription = (transactionId, plan) => {
   return axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
 };
 
-const isFollowOnRetryable = (status, data) => {
-  if (status === 502 || status === 503 || status === 504) {
+const shouldRetryFollowOnSubscription = (upstreamStatus, upstreamResponseData) => {
+  if (upstreamStatus === 502 || upstreamStatus === 503 || upstreamStatus === 504) {
     return true;
   }
 
-  if (status !== 400 && status !== 404) {
+  if (upstreamStatus !== 400 && upstreamStatus !== 404) {
     return false;
   }
 
-  return !Array.isArray(data?.details) || data.details.length === 0;
+  return !Array.isArray(upstreamResponseData?.details) || upstreamResponseData.details.length === 0;
+
+  //returns TRUE if the error is retryable, FALSE otherwise
+  // For example, if the error is a 400 or 404 with details, it is not retryable
 };
 
+const createFollowOnSubscriptionWithRetry = async (transactionId, plan) => {
+  for (let retryAttempt = 0; retryAttempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; retryAttempt += 1) {
+    try {
+      return await createFollowOnSubscription(transactionId, plan);
+    } catch (error) {
+      const upstreamStatusCode = error.response?.status || 500;
+      const upstreamResponseData = error.response?.data ?? null;
+
+      console.error("Recurring billing error:", upstreamResponseData || error.message);
+
+      if (retryAttempt === FOLLOW_ON_RETRY_DELAYS_MS.length || !shouldRetryFollowOnSubscription(upstreamStatusCode, upstreamResponseData)) {
+        throw error;
+      }
+
+      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[retryAttempt]);
+    }
+  }
+  //returns the subscription response or throws the final error
+};
+
+//Verify the JWT, extract the transaction ID, and create a follow-on subscription with retry logic
 const activateRecurringBilling = async (req, res) => {
   try {
     const decoded = decodeJwtPayload(req.body?.result);
@@ -204,39 +227,11 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    let lastError;
+    const response = await createFollowOnSubscriptionWithRetry(transactionId, plan);
 
-    for (let attempt = 1; attempt <= FOLLOW_ON_MAX_ATTEMPTS; attempt += 1) {
-      try {
-        const response = await createFollowOnSubscription(transactionId, plan);
-
-        return res.json({
-          success: true,
-          response: response?.data,
-        });
-      } catch (error) {
-        lastError = error;
-
-        const upstreamStatus = error.response?.status || 500;
-        const upstreamData = error.response?.data ?? null;
-        const canRetry = attempt < FOLLOW_ON_MAX_ATTEMPTS && isFollowOnRetryable(upstreamStatus, upstreamData);
-
-        console.error("Recurring billing error:", upstreamData || error.message);
-
-        if (!canRetry) {
-          break;
-        }
-
-        await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt - 1]);
-      }
-    }
-
-    const upstreamStatus = lastError.response?.status || 500;
-    const upstreamData = lastError.response?.data ?? null;
-
-    return res.status(upstreamStatus).json({
-      error: upstreamData?.message || "Failed to process recurring billing",
-      details: upstreamData,
+    return res.json({
+      success: true,
+      response: response?.data,
     });
   } catch (error) {
     const upstreamStatus = error.response?.status || 500;
