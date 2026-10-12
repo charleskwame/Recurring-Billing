@@ -279,6 +279,9 @@ createFollowOnSubscription(transactionId, plan) builds this request body:
       name: plan.name,
       startDate: <current UTC timestamp>
     }
+      },
+      paymentInformation: {
+        customer: { id: "<TMS-customer-token-id>" }
   }
 
 formatSubscriptionStartDate produces an ISO timestamp without milliseconds, for example:
@@ -298,6 +301,7 @@ The final default path is therefore:
   /rbs/v1/subscriptions/follow-ons/<transactionId>
 
 The request is authenticated with createHeaders using the exact recurring-billing resource path and serialized body.
+The `paymentInformation.customer.id` value is required by CyberSource and must be the customer token returned by Unified Checkout/TMS; it is not the browser account username and must not be substituted with the transaction ID.
 
 
 12. RETRIES FOR TRANSIENT RECURRING BILLING ERRORS
