@@ -2,25 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Unified Checkout Demo</title>
-    <link
-      rel="icon"
-      href="./favicon.svg"
-      type="image/svg+xml" />
-    <link
-      rel="stylesheet"
-      href="./index.css" />
-    <meta
-      name="description"
-      content="Unified Checkout demo with recurring billing" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./index.css" />
+    <meta name="description" content="Unified Checkout demo with recurring billing" />
   </head>
   <body>
-    <div
-      class="background-effects"
-      aria-hidden="true">
+    <div class="background-effects" aria-hidden="true">
       <div class="blob blob-1"></div>
       <div class="blob blob-2"></div>
     </div>
@@ -32,75 +21,7 @@
         <p>Simple plans for steady progress. Cancel whenever you need.</p>
       </header>
 
-      <section
-        class="account-panel"
-        aria-labelledby="accountTitle">
-        <div class="account-copy">
-          <p class="eyebrow">Your account</p>
-          <h2 id="accountTitle">Keep your subscription connected.</h2>
-          <p id="accountDescription">Create an account or log in before choosing a plan.</p>
-        </div>
-        <form
-          class="account-form"
-          id="accountForm">
-          <label>
-            Username
-            <input
-              id="usernameInput"
-              name="username"
-              autocomplete="username"
-              required
-              minlength="3"
-              maxlength="32"
-              pattern="[A-Za-z0-9_]+" />
-          </label>
-          <label>
-            Password
-            <input
-              id="passwordInput"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              required
-              minlength="8"
-              maxlength="128" />
-          </label>
-          <div class="account-actions">
-            <button
-              class="btn-primary"
-              id="accountSubmit"
-              type="submit">
-              Create account
-            </button>
-            <button
-              class="btn-secondary"
-              id="accountMode"
-              type="button">
-              Log in instead
-            </button>
-          </div>
-          <p
-            class="account-message"
-            id="accountMessage"
-            role="alert"></p>
-        </form>
-        <div
-          class="signed-in"
-          id="signedInState"
-          hidden>
-          <p>Signed in as <strong id="signedInUsername"></strong></p>
-          <button
-            class="btn-secondary"
-            id="logoutButton"
-            type="button">
-            Log out
-          </button>
-        </div>
-      </section>
-
-      <section
-        class="pricing-cards"
-        aria-label="Subscription plans">
+      <section class="pricing-cards" aria-label="Subscription plans">
         <article class="card">
           <div class="card-header">
             <h2>Daily 20 Test</h2>
@@ -108,13 +29,7 @@
           </div>
           <p class="price"><span class="currency">$</span><span class="amount">20</span><span class="period">/ day</span></p>
           <p class="plan-description">A small daily commitment to keep momentum moving.</p>
-          <button
-            class="btn-primary plan-button"
-            data-plan-key="daily"
-            type="button"
-            disabled>
-            Choose daily <span aria-hidden="true">&rarr;</span>
-          </button>
+          <button class="btn-primary plan-button" data-plan-key="daily" type="button">Choose daily <span aria-hidden="true">&rarr;</span></button>
         </article>
 
         <article class="card popular">
@@ -125,13 +40,7 @@
           </div>
           <p class="price"><span class="currency">$</span><span class="amount">50</span><span class="period">/ week</span></p>
           <p class="plan-description">A weekly cadence with more room to get things done.</p>
-          <button
-            class="btn-primary plan-button"
-            data-plan-key="weekly"
-            type="button"
-            disabled>
-            Choose weekly <span aria-hidden="true">&rarr;</span>
-          </button>
+          <button class="btn-primary plan-button" data-plan-key="weekly" type="button">Choose weekly <span aria-hidden="true">&rarr;</span></button>
         </article>
 
         <article class="card">
@@ -141,27 +50,17 @@
           </div>
           <p class="price"><span class="currency">$</span><span class="amount">100</span><span class="period">/ month</span></p>
           <p class="plan-description">The calmest plan for a longer, uninterrupted run.</p>
-          <button
-            class="btn-primary plan-button"
-            data-plan-key="monthly"
-            type="button"
-            disabled>
-            Choose monthly <span aria-hidden="true">&rarr;</span>
-          </button>
+          <button class="btn-primary plan-button" data-plan-key="monthly" type="button">Choose monthly <span aria-hidden="true">&rarr;</span></button>
         </article>
       </section>
 
-      <section
-        class="implementation-guide"
-        aria-labelledby="guideTitle">
+      <section class="implementation-guide" aria-labelledby="guideTitle">
         <div class="guide-heading">
           <p class="eyebrow">How the demo works</p>
           <h2 id="guideTitle">From plan to recurring subscription</h2>
           <p>Follow the complete path from the plan button to the recurring subscription response.</p>
         </div>
-        <div
-          class="guide-reference"
-          aria-label="Integration reference">
+        <div class="guide-reference" aria-label="Integration reference">
           <div class="reference-block">
             <h3>Important URLs</h3>
             <dl class="reference-list">
@@ -398,54 +297,25 @@ checkout.destroy(); client.destroy();</code></pre>
         </ol>
       </section>
 
-      <p
-        class="status-message"
-        id="statusMessage"
-        role="status"
-        aria-live="polite"></p>
+      <p class="status-message" id="statusMessage" role="status" aria-live="polite"></p>
     </main>
 
-    <aside
-      class="checkout-sidebar"
-      id="checkoutSidebar"
-      aria-label="Payment checkout">
-      <button
-        class="close-checkout"
-        id="closeCheckout"
-        type="button"
-        aria-label="Close payment checkout">
-        &times;
-      </button>
+    <aside class="checkout-sidebar" id="checkoutSidebar" aria-label="Payment checkout">
+      <button class="close-checkout" id="closeCheckout" type="button" aria-label="Close payment checkout">&times;</button>
       <p class="eyebrow">Secure checkout</p>
       <h2>Complete payment</h2>
       <div id="buttonPaymentListContainer"></div>
       <div id="embeddedPaymentContainer"></div>
     </aside>
 
-    <dialog
-      class="success-dialog"
-      id="successDialog"
-      aria-labelledby="successDialogTitle">
-      <div
-        class="success-icon"
-        aria-hidden="true">
-        &#10003;
-      </div>
+    <dialog class="success-dialog" id="successDialog" aria-labelledby="successDialogTitle">
+      <div class="success-icon" aria-hidden="true">&#10003;</div>
       <h2 id="successDialogTitle">Subscription complete</h2>
       <p>Your subscription was created successfully.</p>
-      <pre
-        class="subscription-result"
-        id="subscriptionResult"></pre>
-      <button
-        class="btn-secondary"
-        id="closeSuccessDialog"
-        type="button">
-        Close
-      </button>
+      <pre class="subscription-result" id="subscriptionResult"></pre>
+      <button class="btn-secondary" id="closeSuccessDialog" type="button">Close</button>
     </dialog>
   </body>
   <script src="https://cdn.jsdelivr.net/npm/axios@1.13.2/dist/axios.min.js"></script>
-  <script
-    src="./index.js"
-    type="module"></script>
+  <script src="./index.js" type="module"></script>
 </html>
