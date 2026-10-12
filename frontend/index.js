@@ -7,13 +7,29 @@ const statusMessage = document.getElementById("statusMessage");
 const successDialog = document.getElementById("successDialog");
 const subscriptionResult = document.getElementById("subscriptionResult");
 const closeSuccessDialogButton = document.getElementById("closeSuccessDialog");
+const accountForm = document.getElementById("accountForm");
+const usernameInput = document.getElementById("usernameInput");
+const passwordInput = document.getElementById("passwordInput");
+const accountSubmit = document.getElementById("accountSubmit");
+const accountMode = document.getElementById("accountMode");
+const accountMessage = document.getElementById("accountMessage");
+const accountDescription = document.getElementById("accountDescription");
+const signedInState = document.getElementById("signedInState");
+const signedInUsername = document.getElementById("signedInUsername");
+const logoutButton = document.getElementById("logoutButton");
 const checkoutOrigin = window.location.origin === "null" ? "https://recurring-billing-frontend.vercel.app" : window.location.origin;
+let accountModeIsLogin = false;
+let currentAccount = null;
 
 const activateRecurringBilling = async (result, planKey) => {
-  return axios.post(`${BACKEND_URL}/activate-recurring-billing`, {
-    result,
-    planKey,
-  });
+  return axios.post(
+    `${BACKEND_URL}/activate-recurring-billing`,
+    {
+      result,
+      planKey,
+    },
+    { withCredentials: true },
+  );
 };
 
 const paymentPayload = (planKey) => ({
@@ -117,7 +133,7 @@ const startWithVAS = async (captureContext, planKey) => {
       console.log("Payment result response:", response);
       console.log("Subscription result response:", response.data);
       statusMessage.textContent = "Subscription created successfully.";
-      subscriptionResult.textContent = JSON.stringify(response.data, null, 2);
+      subscriptionResult.textContent = JSON.stringify({ subscriptionId: response.data.subscriptionId }, null, 2);
       successDialog?.showModal();
     } else {
       throw new Error("Unified Checkout returned no payment result.");
@@ -163,7 +179,7 @@ const getSessionContext = async (event) => {
   event.preventDefault();
 
   try {
-    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload(planKey));
+    const response = await axios.post(`${BACKEND_URL}/checkout-session`, paymentPayload(planKey), { withCredentials: true });
 
     const captureContext = response.data;
 
@@ -222,3 +238,75 @@ const getSessionContext = async (event) => {
 planButtons.forEach((button) => button.addEventListener("click", getSessionContext));
 closeCheckoutButton?.addEventListener("click", () => checkoutSidebar?.classList.remove("is-open"));
 closeSuccessDialogButton?.addEventListener("click", () => successDialog?.close());
+
+const setPlanButtonsEnabled = (enabled) => {
+  planButtons.forEach((button) => {
+    button.disabled = !enabled;
+  });
+};
+
+const showAccount = (user) => {
+  currentAccount = user;
+  accountForm.hidden = true;
+  signedInState.hidden = false;
+  signedInUsername.textContent = user.username;
+  accountDescription.textContent = user.hasSubscription
+    ? "Your account already has a subscription."
+    : "Your next subscription will be connected to this account.";
+  setPlanButtonsEnabled(!user.hasSubscription);
+};
+
+const showAccountForm = () => {
+  currentAccount = null;
+  accountForm.hidden = false;
+  signedInState.hidden = true;
+  accountSubmit.textContent = accountModeIsLogin ? "Log in" : "Create account";
+  accountMode.textContent = accountModeIsLogin ? "Create an account instead" : "Log in instead";
+  accountDescription.textContent = accountModeIsLogin ? "Log in to continue to your subscription." : "Create an account before choosing a plan.";
+  setPlanButtonsEnabled(false);
+};
+
+accountMode?.addEventListener("click", () => {
+  accountModeIsLogin = !accountModeIsLogin;
+  accountMessage.textContent = "";
+  showAccountForm();
+});
+
+accountForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  accountSubmit.disabled = true;
+  accountMessage.textContent = "";
+  try {
+    const route = accountModeIsLogin ? "login" : "signup";
+    const response = await axios.post(
+      `${BACKEND_URL}/account/${route}`,
+      {
+        username: usernameInput.value,
+        password: passwordInput.value,
+      },
+      { withCredentials: true },
+    );
+    passwordInput.value = "";
+    showAccount(response.data.user);
+  } catch (error) {
+    accountMessage.textContent = error?.response?.data?.error || "Unable to update your account.";
+  } finally {
+    accountSubmit.disabled = false;
+  }
+});
+
+logoutButton?.addEventListener("click", async () => {
+  await axios.post(`${BACKEND_URL}/account/logout`, null, { withCredentials: true });
+  showAccountForm();
+});
+
+const restoreAccount = async () => {
+  try {
+    const response = await axios.get(`${BACKEND_URL}/account/me`, { withCredentials: true });
+    showAccount(response.data.user);
+  } catch {
+    showAccountForm();
+  }
+};
+
+restoreAccount();

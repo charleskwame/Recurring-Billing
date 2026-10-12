@@ -11,6 +11,8 @@ This document describes how the implementation works across:
 
 The system uses a browser frontend, an Express backend, and CyberSource Unified Checkout plus Recurring Billing APIs.
 
+The account-enabled flow also uses MongoDB. Each user document contains a normalized username, a one-way passwordHash, and subscriptionId. The password is never stored or returned in plaintext, and the browser never receives the MongoDB credentials.
+
 
 1. APPLICATION STARTUP
 ----------------------
@@ -42,6 +44,8 @@ Backend:
 
 2. USER SELECTS A PLAN
 ----------------------
+
+Before selecting a plan, the user creates an account or logs in through the backend. The backend issues a signed HttpOnly session cookie. The frontend sends this cookie with account, checkout, and activation requests but does not send a username as an ownership claim.
 
 The user clicks one of the buttons in frontend/index.html. The following event listener in frontend/index.js handles the click:
 
@@ -239,6 +243,8 @@ with this JSON body:
     planKey: <daily | weekly | monthly>
   }
 
+The backend also validates a short-lived signed checkout cookie containing the authenticated user ID and selected plan. This prevents a client from substituting another account or changing the plan between checkout and activation.
+
 The payment result is not used by the browser to create the subscription. The backend receives it and performs the authenticated recurring billing request.
 
 
@@ -341,6 +347,16 @@ After startWithVAS returns, getSessionContext also:
 Finally, startWithVAS destroys the CyberSource checkout and client objects in its finally block, preventing the embedded checkout instance from remaining active after completion or failure.
 
 
+14A. STORE THE SUBSCRIPTION ID
+-------------------------------
+
+After the follow-on request succeeds, the backend reads the subscription identifier from the CyberSource response. It atomically updates the authenticated user's MongoDB document only when subscriptionId is still null:
+
+  { username, passwordHash, subscriptionId }
+
+The backend returns the subscription ID as the minimal success result. It does not return the password hash or the complete provider response. If CyberSource fails or does not return an identifier, MongoDB is not updated. A second activation for an account that already has a subscription is rejected.
+
+
 14. ERROR HANDLING PATH
 -----------------------
 
@@ -408,8 +424,12 @@ backend/.env must provide the CyberSource settings used by backend/index.js:
 - SUBSCRIPTION_RESOURCE_PATH, optional
 - PORT, optional for local development
 - NODE_ENV, used to decide whether to start a local listener
+- MONGODB_URI, the rotated MongoDB connection string kept only in backend/Vercel environment settings
+- MONGODB_DATABASE, optional database name and defaults to recurringBilling
+- SESSION_SECRET, a long random value used to sign HttpOnly session and checkout cookies
 
 The API secret must stay on the backend. It must not be placed in frontend/index.js or exposed to the browser.
+The MongoDB URI and SESSION_SECRET must also stay on the backend. The MongoDB credential previously supplied for this project must be rotated before deployment because it has been exposed.
 
 
 17. COMPLETE REQUEST SEQUENCE
