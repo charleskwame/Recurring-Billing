@@ -96,14 +96,6 @@ const decodeJwtPayload = (token) => {
   }
 };
 
-const getCustomerIdFromPaymentResult = (decoded) =>
-  decoded?.paymentInformation?.customer?.id ||
-  decoded?.paymentInformation?.customerId ||
-  decoded?.tokenInformation?.customer?.id ||
-  decoded?.tokenInformation?.customerId ||
-  decoded?.data?.paymentInformation?.customer?.id ||
-  decoded?.data?.tokenInformation?.customer?.id;
-
 const normalizedHost = HOST ? HOST.replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
 
 const getPlan = (planKey) => {
@@ -314,7 +306,7 @@ const createCheckoutSession = async (req, res) => {
 };
 
 //Actual Function That Creates the Subscription
-const createFollowOnSubscription = (transactionId, customerId, plan) => {
+const createFollowOnSubscription = (transactionId, plan) => {
   const subscriptionData = {
     clientReferenceInformation: {
       code: `subscription_${transactionId}`,
@@ -323,11 +315,6 @@ const createFollowOnSubscription = (transactionId, customerId, plan) => {
       planId: plan.id,
       name: plan.name,
       startDate: formatSubscriptionStartDate(),
-    },
-    paymentInformation: {
-      customer: {
-        id: customerId,
-      },
     },
   };
 
@@ -354,10 +341,10 @@ const shouldRetryFollowOnSubscription = (upstreamStatus, upstreamResponseData) =
   // For example, if the error is a 400 or 404 with details, it is not retryable
 };
 
-const createFollowOnSubscriptionWithRetry = async (transactionId, customerId, plan) => {
+const createFollowOnSubscriptionWithRetry = async (transactionId, plan) => {
   for (let retryAttempt = 0; retryAttempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; retryAttempt += 1) {
     try {
-      return await createFollowOnSubscription(transactionId, customerId, plan);
+      return await createFollowOnSubscription(transactionId, plan);
     } catch (error) {
       const upstreamStatusCode = error.response?.status || 500;
       const upstreamResponseData = error.response?.data ?? null;
@@ -384,18 +371,11 @@ const activateRecurringBilling = async (req, res) => {
 
     const decoded = decodeJwtPayload(req.body?.result);
     const transactionId = decoded?.id;
-    const customerId = getCustomerIdFromPaymentResult(decoded);
     const plan = getPlan(checkout.planKey);
 
     if (!transactionId) {
       return res.status(400).json({
         error: "Transaction ID is missing from the decoded result",
-      });
-    }
-
-    if (!customerId) {
-      return res.status(400).json({
-        error: "Customer ID is missing from the decoded payment result.",
       });
     }
 
@@ -405,7 +385,7 @@ const activateRecurringBilling = async (req, res) => {
       });
     }
 
-    const response = await createFollowOnSubscriptionWithRetry(transactionId, customerId, plan);
+    const response = await createFollowOnSubscriptionWithRetry(transactionId, plan);
     const subscriptionId = response?.data?.id || response?.data?.subscriptionId;
     if (!subscriptionId) {
       return res.status(502).json({ error: "CyberSource did not return a subscription ID." });
