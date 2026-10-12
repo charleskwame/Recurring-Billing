@@ -52,7 +52,12 @@ const PLANS = {
   },
 };
 
-const FOLLOW_ON_RETRY_DELAYS_MS = [300, 500, 1000]; // Delays in milliseconds for retry attempts
+// CyberSource indexes a completed payment asynchronously. Until that finishes, the recurring
+// billing service rejects an otherwise valid follow-on request with 400 INVALID_DATA / 404
+// NOT_FOUND, so those responses are transient and must be retried. The delays grow geometrically
+// and total ~3.5s so the whole call stays inside a serverless function timeout.
+const FOLLOW_ON_RETRY_DELAYS_MS = [500, 1000, 2000]; // Delays in milliseconds between retry attempts
+const FOLLOW_ON_MAX_ATTEMPTS = FOLLOW_ON_RETRY_DELAYS_MS.length + 1;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -173,8 +178,17 @@ const createFollowOnSubscription = (transactionId, plan) => {
   return axios.post(`https://${normalizedHost}${rbsResourcePath}`, rawBody, { headers, timeout: 10000 });
 };
 
+// Upstream statuses that always describe a temporary condition.
+const TRANSIENT_FOLLOW_ON_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+// 400/404 reasons CyberSource returns while the original transaction is still being indexed.
+const TRANSIENT_FOLLOW_ON_REASONS = new Set(["INVALID_DATA", "NOT_FOUND", "NOT_AVAILABLE", "SYSTEM_ERROR", "SERVER_ERROR", "TIMEOUT"]);
+
+// Returns TRUE when the failure is worth retrying, FALSE when the request itself is the problem.
+// A 400/404 that carries a details array is only retryable when its reason is a known transient
+// one; a transient reason must still be retried even though it includes details.
 const shouldRetryFollowOnSubscription = (upstreamStatus, upstreamResponseData) => {
-  if (upstreamStatus === 502 || upstreamStatus === 503 || upstreamStatus === 504) {
+  if (TRANSIENT_FOLLOW_ON_STATUSES.has(upstreamStatus)) {
     return true;
   }
 
@@ -182,30 +196,48 @@ const shouldRetryFollowOnSubscription = (upstreamStatus, upstreamResponseData) =
     return false;
   }
 
-  return !Array.isArray(upstreamResponseData?.details) || upstreamResponseData.details.length === 0;
+  const details = upstreamResponseData?.details;
+  const reasons = [upstreamResponseData?.reason, ...(Array.isArray(details) ? details.map((detail) => detail?.reason) : [])]
+    .map((reason) => String(reason || "").toUpperCase())
+    .filter(Boolean);
 
-  //returns TRUE if the error is retryable, FALSE otherwise
-  // For example, if the error is a 400 or 404 with details, it is not retryable
+  // With no reason to act on, treat the response as transient and retry.
+  if (reasons.length === 0) {
+    return true;
+  }
+
+  // A field-level validation failure can never succeed on a retry, no matter how long we wait.
+  if (reasons.includes("REQUIRED")) {
+    return false;
+  }
+
+  return reasons.some((reason) => TRANSIENT_FOLLOW_ON_REASONS.has(reason));
 };
 
 const createFollowOnSubscriptionWithRetry = async (transactionId, plan) => {
-  for (let retryAttempt = 0; retryAttempt <= FOLLOW_ON_RETRY_DELAYS_MS.length; retryAttempt += 1) {
+  for (let attempt = 1; attempt <= FOLLOW_ON_MAX_ATTEMPTS; attempt += 1) {
     try {
       return await createFollowOnSubscription(transactionId, plan);
     } catch (error) {
       const upstreamStatusCode = error.response?.status || 500;
       const upstreamResponseData = error.response?.data ?? null;
+      const retryable = shouldRetryFollowOnSubscription(upstreamStatusCode, upstreamResponseData);
 
-      console.error("Recurring billing error:", upstreamResponseData || error.message);
+      console.error(
+        `Recurring billing attempt ${attempt}/${FOLLOW_ON_MAX_ATTEMPTS} failed (status ${upstreamStatusCode}, retryable: ${retryable}):`,
+        upstreamResponseData || error.message,
+      );
 
-      if (retryAttempt === FOLLOW_ON_RETRY_DELAYS_MS.length || !shouldRetryFollowOnSubscription(upstreamStatusCode, upstreamResponseData)) {
+      if (attempt === FOLLOW_ON_MAX_ATTEMPTS || !retryable) {
         throw error;
       }
 
-      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[retryAttempt]);
+      await sleep(FOLLOW_ON_RETRY_DELAYS_MS[attempt - 1]);
     }
   }
-  //returns the subscription response or throws the final error
+
+  // Unreachable: the loop either returns the subscription or throws the last error.
+  throw new Error("Follow-on subscription retry loop exited unexpectedly.");
 };
 
 //Verify the JWT, extract the transaction ID, and create a follow-on subscription with retry logic

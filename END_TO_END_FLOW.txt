@@ -301,16 +301,28 @@ The follow-on request can be attempted up to four times.
 
 Retry delays are:
 
-- after attempt 1: 300 ms
-- after attempt 2: 500 ms
-- after attempt 3: 1000 ms
+- after attempt 1: 500 ms
+- after attempt 2: 1000 ms
+- after attempt 3: 2000 ms
 
 The backend retries when:
 
-- the upstream status is 502, 503, or 504; or
-- the upstream status is 400 or 404 and the response does not contain a non-empty details array.
+- the upstream status is 408, 429, or any 5xx; or
+- the upstream status is 400 or 404 and the failure looks transient.
 
-It does not retry other failures, or 400/404 responses that contain details. After the final failed attempt, the backend returns the last upstream status, message, and details.
+A 400 or 404 is treated as transient when CyberSource has not finished indexing the
+completed payment yet. CyberSource reports that state as INVALID_DATA or NOT_FOUND, and
+it includes those reasons in the response details array. The earlier implementation only
+retried 400/404 responses whose details array was empty, so the exact "transaction is not
+available yet" response was never retried and the subscription failed on the first attempt.
+
+A field-level validation failure (a detail reason of REQUIRED) is never retried, because
+the same request cannot succeed later. When no reason is present at all, the response is
+treated as transient.
+
+Each attempt is logged with its number, the upstream status, and whether it will be
+retried. After the final failed attempt, the backend returns the last upstream status,
+message, and details.
 
 When the request succeeds, the backend returns:
 
